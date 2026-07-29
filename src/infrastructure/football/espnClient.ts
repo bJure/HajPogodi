@@ -23,18 +23,24 @@ const BASE_URL = 'https://site.web.api.espn.com/apis/site/v2/sports/soccer/all/t
 export const ESPN_HAJDUK_ID = 489;
 
 /**
- * ESPN league slug to the league id our competitions are already seeded under.
+ * ESPN league slug to the competition our database already carries.
+ *
  * Qualifying rounds map onto the same competition as the tournament proper -
  * from a predictor's point of view a Conference League qualifier is still the
  * Conference League.
+ *
+ * The name is ours, not ESPN's. Competitions are upserted by league id, so
+ * passing `event.league.name` through would rename the seeded Croatian
+ * competition to whatever English label the feed used that week: the first sync
+ * turned "UEFA Europska liga" into "UEFA Europa League Qualifying".
  */
-const SLUG_TO_LEAGUE_ID: Record<string, number> = {
-  'uefa.champions': 2,
-  'uefa.champions_qual': 2,
-  'uefa.europa': 3,
-  'uefa.europa_qual': 3,
-  'uefa.europa.conf': 848,
-  'uefa.europa.conf_qual': 848,
+const COMPETITIONS: Record<string, { apiLeagueId: number; name: string }> = {
+  'uefa.champions': { apiLeagueId: 2, name: 'UEFA Liga prvaka' },
+  'uefa.champions_qual': { apiLeagueId: 2, name: 'UEFA Liga prvaka' },
+  'uefa.europa': { apiLeagueId: 3, name: 'UEFA Europska liga' },
+  'uefa.europa_qual': { apiLeagueId: 3, name: 'UEFA Europska liga' },
+  'uefa.europa.conf': { apiLeagueId: 848, name: 'UEFA Konferencijska liga' },
+  'uefa.europa.conf_qual': { apiLeagueId: 848, name: 'UEFA Konferencijska liga' },
 };
 
 interface EspnCompetitor {
@@ -84,9 +90,9 @@ function mapStatus(
 /** Pure mapper, exported so the shape can be tested without the network. */
 export function mapEspnEvent(event: EspnEvent, ourTeamId: number): FixtureDto | null {
   const slug = event.league?.slug ?? '';
-  const apiLeagueId = SLUG_TO_LEAGUE_ID[slug];
+  const competitionInfo = COMPETITIONS[slug];
   // Not a UEFA competition we track - domestic fixtures are semafor's job.
-  if (!apiLeagueId) return null;
+  if (!competitionInfo) return null;
 
   const rawId = Number.parseInt(event.id ?? '', 10);
   if (Number.isNaN(rawId)) return null;
@@ -125,8 +131,8 @@ export function mapEspnEvent(event: EspnEvent, ourTeamId: number): FixtureDto | 
       logoUrl: opponent.team?.logos?.[0]?.href ?? null,
     },
     competition: {
-      apiLeagueId,
-      name: event.league?.name ?? 'UEFA',
+      apiLeagueId: competitionInfo.apiLeagueId,
+      name: competitionInfo.name,
       type: 'EUROPE',
       logoUrl: null,
     },

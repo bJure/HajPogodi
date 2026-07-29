@@ -75,6 +75,16 @@ describe('ESPN mapper', () => {
   });
 
   /**
+   * Competitions are upserted by league id, so a name coming from the feed
+   * renames the seeded row. The first live sync did exactly that: it turned
+   * "UEFA Europska liga" into "UEFA Europa League Qualifying".
+   */
+  it('koristi nase ime natjecanja, ne ESPN-ovo', () => {
+    const qual = mapEspnEvent(event({ slug: 'uefa.europa_qual' }) as never, ESPN_HAJDUK_ID);
+    expect(qual?.competition.name).toBe('UEFA Europska liga');
+  });
+
+  /**
    * ESPN carries no Croatian football at all, so anything domestic that shows
    * up here is a slug we do not understand - dropping it lets semafor stay the
    * single source for the league and the cup.
