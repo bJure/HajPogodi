@@ -1,12 +1,14 @@
 import 'server-only';
 import type { FixtureDto, FootballApiPort } from '@/application/ports/services';
 import type { MatchRow } from '@/application/ports/repositories';
+import { scoreMatch } from '@/application/services/scoringService';
 import { logger } from '@/infrastructure/logging/logger';
 import { shortenTeamName } from '@/infrastructure/football/apiFootballClient';
 import { compositeFootballApi } from '@/infrastructure/football/compositeClient';
 import {
   competitionRepository,
   matchRepository,
+  matchResultRepository,
   seasonRepository,
   teamRepository,
 } from '@/infrastructure/repositories/matchRepository';
@@ -29,6 +31,8 @@ export interface SyncFixturesSummary {
   readonly created: number;
   readonly updated: number;
   readonly skipped: number;
+  /** Final scores picked up straight from the schedule. */
+  readonly resolved: number;
 }
 
 /** Fields the admin may override; sync respects these. */
@@ -40,7 +44,7 @@ export async function runSyncFixtures(
   const season = await seasonRepository.findActive();
   if (!season) {
     logger.warn('sinkronizacija preskocena: nema aktivne sezone');
-    return { fetched: 0, created: 0, updated: 0, skipped: 0 };
+    return { fetched: 0, created: 0, updated: 0, skipped: 0, resolved: 0 };
   }
 
   const fixtures = await api.listSeasonFixtures(season.apiYear);
@@ -49,6 +53,7 @@ export async function runSyncFixtures(
   let created = 0;
   let updated = 0;
   let skipped = 0;
+  let resolved = 0;
   const newlyCreated: { matchId: string; opponent: string; kickoffAt: Date }[] = [];
 
   for (const fixture of fixtures) {
@@ -90,24 +95,70 @@ export async function runSyncFixtures(
         opponent: opponent.shortName,
         kickoffAt: fixture.kickoffAt,
       });
+
+      if (await storeFinalScore(match.id, fixture, false)) resolved += 1;
       continue;
     }
 
     const patch = buildPatch(existing, fixture, competition.id, opponent.id);
     if (Object.keys(patch).length === 0) {
       skipped += 1;
-      continue;
+    } else {
+      await matchRepository.update(existing.id, patch);
+      updated += 1;
     }
 
-    await matchRepository.update(existing.id, patch);
-    updated += 1;
+    if (await storeFinalScore(existing.id, fixture, existing.result !== null)) {
+      resolved += 1;
+    }
   }
 
   await notifyNewMatches(newlyCreated);
 
-  const summary = { fetched: fixtures.length, created, updated, skipped };
+  const summary = { fetched: fixtures.length, created, updated, skipped, resolved };
   logger.info(summary, 'sinkronizacija rasporeda gotova');
   return summary;
+}
+
+/**
+ * Stores a final score the schedule already carried.
+ *
+ * The result poller only looks inside a match's result window - from 105 to 300
+ * minutes after kickoff - which is right for spending requests sparingly, but it
+ * means a match that finished while nothing was polling never gets a result at
+ * all. Both providers return the score as part of the schedule, so the sync can
+ * close that gap for free instead of leaving matches for an admin to type in.
+ *
+ * A result already on file is never overwritten: an admin correction outranks
+ * whatever the provider says.
+ */
+async function storeFinalScore(
+  matchId: string,
+  fixture: FixtureDto,
+  alreadyHasResult: boolean,
+): Promise<boolean> {
+  if (alreadyHasResult) return false;
+  if (fixture.status !== 'FINISHED' || !fixture.score) return false;
+
+  await matchRepository.update(matchId, { status: 'FINISHED' });
+
+  await matchResultRepository.upsert({
+    matchId,
+    homeGoals: fixture.score.homeGoals,
+    awayGoals: fixture.score.awayGoals,
+    source: 'API',
+    rawPayload: fixture.raw,
+    correctedById: null,
+    correctionNote: null,
+  });
+
+  await scoreMatch(matchId);
+
+  logger.info(
+    { matchId, homeGoals: fixture.score.homeGoals, awayGoals: fixture.score.awayGoals },
+    'rezultat preuzet iz rasporeda',
+  );
+  return true;
 }
 
 /**

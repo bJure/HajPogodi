@@ -52,8 +52,8 @@ export default async function LeaderboardPage() {
           <li className="flex gap-2">
             <span className="text-ink-faint">↕</span>
             <span>
-              Kod jednakog broja bodova ispred je onaj s više pogodaka, pa onaj s manje
-              odigranih prognoza.
+              Kod jednakog broja bodova ispred je onaj s manje odigranih prognoza — isti
+              učinak iz manje pokušaja vrijedi više.
             </span>
           </li>
         </ul>
