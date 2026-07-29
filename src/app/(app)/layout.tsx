@@ -12,7 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <NavBar nickname={user.nickname} isAdmin={user.role === 'ADMIN'} />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-8">{children}</main>
         <footer className="border-t border-white/8 py-6 text-center text-xs text-ink-faint">
-          HajPogodi · Bodovi ne lažu · Uvijek vjerni
+          HajPogodi · Bodovi ne lažu · Ajmo bijeli ale
         </footer>
       </div>
     </Providers>

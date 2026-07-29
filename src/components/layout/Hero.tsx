@@ -43,7 +43,7 @@ export function Hero({
         <div className="flex items-center gap-2">
           <span className="h-px w-8 bg-hajduk-red" />
           <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-hajduk-red-soft">
-            Uvijek vjerni
+            Ajmo bijeli ale
           </span>
         </div>
 
