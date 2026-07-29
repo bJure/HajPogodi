@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import type { MatchDto } from '@/application/dto/match';
 import type { PredictionDto } from '@/application/dto/prediction';
 import { useLiveData } from '@/components/live/useLiveData';
@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { Countdown } from '@/components/match/Countdown';
 import { PredictionForm } from '@/components/prediction/PredictionForm';
 import { formatDateTime } from '@/lib/format';
+import { OUR_CLUB_CREST_URL, OUR_CLUB_INITIAL } from '@/lib/club';
 import type { PollHint } from '@/domain/match/pollHint';
 
 interface NextMatchPayload {
@@ -61,9 +62,15 @@ export function NextMatchCard({ initial }: { initial: NextMatchPayload }) {
       </div>
 
       <div className="mb-6 flex items-center justify-center gap-4 sm:gap-8">
-        <TeamBadge name={match.homeName} logoUrl={match.isHome ? null : match.opponent.logoUrl} />
+        <TeamBadge
+          name={match.homeName}
+          logoUrl={match.isHome ? OUR_CLUB_CREST_URL : match.opponent.logoUrl}
+        />
         <span className="text-lg font-bold text-ink-faint">vs</span>
-        <TeamBadge name={match.awayName} logoUrl={match.isHome ? match.opponent.logoUrl : null} />
+        <TeamBadge
+          name={match.awayName}
+          logoUrl={match.isHome ? match.opponent.logoUrl : OUR_CLUB_CREST_URL}
+        />
       </div>
 
       <PredictionForm match={match} prediction={prediction} />
@@ -90,16 +97,28 @@ export function NextMatchCard({ initial }: { initial: NextMatchPayload }) {
 }
 
 function TeamBadge({ name, logoUrl }: { name: string; logoUrl: string | null }) {
+  // Crests are hotlinked from HNS and ESPN, so a moved file or a tightened CSP
+  // shows a broken image rather than nothing. Falling back to the lettermark
+  // keeps the badge looking deliberate either way.
+  const [failed, setFailed] = useState(false);
+  const showLogo = logoUrl !== null && !failed;
+
   return (
     <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-        {logoUrl ? (
+        {showLogo ? (
           // Provider logos are remote and tiny; a plain img avoids an optimizer
           // round-trip for an asset that is already a few kilobytes.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt="" className="h-9 w-9 object-contain" loading="lazy" />
+          <img
+            src={logoUrl}
+            alt=""
+            className="h-9 w-9 object-contain"
+            loading="lazy"
+            onError={() => setFailed(true)}
+          />
         ) : (
-          <span className="text-xl font-black text-hajduk-red">H</span>
+          <span className="text-xl font-black text-hajduk-red">{OUR_CLUB_INITIAL}</span>
         )}
       </div>
       <span className="max-w-full truncate text-center text-sm font-semibold text-ink">{name}</span>

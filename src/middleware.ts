@@ -34,7 +34,10 @@ function buildCsp(nonce: string): string {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isProd ? '' : " 'unsafe-eval'"}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://media.api-sports.io",
+    // Club crests are hotlinked from whichever provider supplied the fixture:
+    // HNS for domestic matches, ESPN for European ones. Without both hosts
+    // listed the policy silently blocks every logo on the page.
+    "img-src 'self' data: blob: https://hns.family https://a.espncdn.com https://media.api-sports.io",
     "font-src 'self' data:",
     "connect-src 'self'",
     "frame-ancestors 'none'",
