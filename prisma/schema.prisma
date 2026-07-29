@@ -1,0 +1,480 @@
+// HajPogodi - shema baze
+//
+// Konvencije:
+//  - svaki model ima `createdAt` / `updatedAt`
+//  - modeli koje admin mijenja nose i `createdById` / `updatedById` kao skalarne
+//    audit oznake (bez FK-a) - puni trag promjena zivi u `AuditLog`, koji jedini
+//    ima pravu relaciju na korisnika. Time izbjegavamo desetak back-relacija
+//    koje nikad ne citamo, a ne gubimo nista od revizije.
+//  - rezultati i prognoze uvijek koriste perspektivu utakmice (domacin/gost),
+//    a `Match.isHome` govori je li Hajduk domacin.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------- enumeracije
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum CompetitionType {
+  LEAGUE
+  CUP
+  EUROPE
+  FRIENDLY
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+  POSTPONED
+  CANCELLED
+}
+
+/// NEEDS_CONFIRMATION: dosla sa sinkronizacije, admin je jos nije potvrdio.
+/// Samo CONFIRMED utakmice su vidljive korisnicima i otvorene za prognoze.
+enum SyncState {
+  NEEDS_CONFIRMATION
+  CONFIRMED
+}
+
+enum ResultSource {
+  API
+  MANUAL
+}
+
+enum RoastSource {
+  GENERATED
+  AI
+  SEED
+}
+
+enum NotificationType {
+  MATCH_OPEN
+  LOCK_SOON
+  POINTS_READY
+  ACHIEVEMENT
+}
+
+enum JobStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum AchievementTier {
+  BRONCA
+  SREBRO
+  ZLATO
+  LEGENDA
+}
+
+// -------------------------------------------------------------------- korisnik
+
+model User {
+  id                 String    @id @default(cuid())
+  username           String    @unique
+  passwordHash       String
+  nickname           String
+  role               Role      @default(USER)
+  isActive           Boolean   @default(true)
+  /// Prisiljava promjenu lozinke pri sljedecoj prijavi (nakon reseta od admina).
+  mustChangePassword Boolean   @default(false)
+  lastLoginAt        DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+  updatedById String?
+
+  predictions        Prediction[]
+  leaderboardEntries LeaderboardEntry[]
+  achievements       UserAchievement[]
+  notifications      Notification[]
+  roastMessages      RoastMessage[]
+  auditLogs          AuditLog[]         @relation("AuditActor")
+  correctedResults   MatchResult[]      @relation("ResultCorrectedBy")
+
+  @@index([isActive])
+  @@map("users")
+}
+
+// -------------------------------------------------------------------- sezone
+
+model Season {
+  id       String   @id @default(cuid())
+  /// npr. "HNL 2026/27"
+  name     String   @unique
+  /// Godina koju API-Football koristi za ovu sezonu (2026 za 2026/27).
+  apiYear  Int
+  startsAt DateTime
+  endsAt   DateTime
+  /// Tocno jedna sezona smije biti aktivna; osigurano u aplikacijskom sloju.
+  isActive Boolean  @default(false)
+
+  /// Identifikatori bodovnih pravila koja vrijede u ovoj sezoni. Dodavanje
+  /// novog pravila = novi id ovdje, bez ijedne promjene u servisima.
+  scoringRuleIds String[] @default(["exact-score"])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+  updatedById String?
+
+  matches            Match[]
+  leaderboardEntries LeaderboardEntry[]
+  achievements       UserAchievement[]
+  roastMessages      RoastMessage[]
+
+  @@index([isActive])
+  @@map("seasons")
+}
+
+// -------------------------------------------------------------- natjecanja/klubovi
+
+model Competition {
+  id                  String          @id @default(cuid())
+  name                String
+  shortName           String
+  type                CompetitionType
+  apiFootballLeagueId Int?            @unique
+  logoUrl             String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+  updatedById String?
+
+  matches Match[]
+
+  @@unique([name])
+  @@map("competitions")
+}
+
+model Team {
+  id                String  @id @default(cuid())
+  name              String  @unique
+  shortName         String
+  apiFootballTeamId Int?    @unique
+  logoUrl           String?
+  /// Oznacava Hajduk - koristi se da se nas klub nikad ne prikaze kao protivnik.
+  isOurClub         Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  matchesAsOpponent Match[] @relation("MatchOpponent")
+
+  @@map("teams")
+}
+
+// ------------------------------------------------------------------- utakmice
+
+model Match {
+  id            String  @id @default(cuid())
+  seasonId      String
+  competitionId String
+  opponentId    String
+  /// Igra li Hajduk kod kuce.
+  isHome        Boolean
+  round         String?
+  venue         String?
+
+  kickoffAt DateTime
+  status    MatchStatus @default(SCHEDULED)
+  syncState SyncState   @default(NEEDS_CONFIRMATION)
+
+  /// null = automatsko zakljucavanje na pocetku utakmice,
+  /// true = admin je rucno zakljucao, false = admin je rucno otkljucao.
+  lockOverride Boolean?
+
+  apiFootballFixtureId Int? @unique
+  /// Nazivi polja koja je admin rucno mijenjao - sinkronizacija ih preskace.
+  manualOverrides      String[] @default([])
+
+  /// Brojac pokusaja dohvata rezultata; sprjecava da odgodena utakmica
+  /// potrosi dnevnu kvotu API-ja.
+  resultPollAttempts Int       @default(0)
+  lastPolledAt       DateTime?
+  /// Kad su bodovi za ovu utakmicu obracunati.
+  scoredAt           DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+  updatedById String?
+
+  season      Season       @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  competition Competition  @relation(fields: [competitionId], references: [id], onDelete: Restrict)
+  opponent    Team         @relation("MatchOpponent", fields: [opponentId], references: [id], onDelete: Restrict)
+  result      MatchResult?
+  predictions Prediction[]
+
+  @@index([seasonId, kickoffAt])
+  @@index([status, kickoffAt])
+  @@index([syncState])
+  @@map("matches")
+}
+
+model MatchResult {
+  id        String @id @default(cuid())
+  matchId   String @unique
+  /// Konacni rezultat iz perspektive utakmice (domacin : gost).
+  homeGoals Int
+  awayGoals Int
+
+  source ResultSource @default(API)
+  /// Sirovi odgovor vanjskog servisa - dokaz odakle je rezultat dosao.
+  rawPayload Json?
+
+  /// Popunjeno kad admin rucno ispravi rezultat.
+  correctedById String?
+  correctedAt   DateTime?
+  correctionNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  match       Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  correctedBy User? @relation("ResultCorrectedBy", fields: [correctedById], references: [id], onDelete: SetNull)
+
+  @@map("match_results")
+}
+
+// ------------------------------------------------------------------- prognoze
+
+model Prediction {
+  id        String @id @default(cuid())
+  userId    String
+  matchId   String
+  homeGoals Int
+  awayGoals Int
+
+  submittedAt DateTime @default(now())
+  /// Koliko je puta prognoza mijenjana prije zakljucavanja.
+  editCount   Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  match Match            @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  score PredictionScore?
+
+  @@unique([userId, matchId])
+  @@index([matchId])
+  @@map("predictions")
+}
+
+model PredictionScore {
+  id           String @id @default(cuid())
+  predictionId String @unique
+  points       Int
+
+  /// Raspis po pravilima: [{ ruleId, label, points }]. Cuva se kako bi
+  /// sucelje uvijek moglo objasniti odakle bod dolazi.
+  breakdown Json
+
+  scoredAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  prediction Prediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+
+  @@map("prediction_scores")
+}
+
+// ----------------------------------------------------------------- ljestvica
+
+/// Materijalizirana ljestvica. U svakom trenutku se moze ponovno izracunati iz
+/// prognoza i rezultata - drzimo je zbog brzine citanja na besplatnoj bazi.
+model LeaderboardEntry {
+  id       String @id @default(cuid())
+  seasonId String
+  userId   String
+
+  rank      Int
+  points    Int @default(0)
+  /// Broj pogodenih tocnih rezultata.
+  exactHits Int @default(0)
+  /// Broj utakmica za koje je korisnik dao prognozu i koje su obracunate.
+  played    Int @default(0)
+  /// Broj utakmica koje je korisnik propustio prognozirati.
+  missed    Int @default(0)
+
+  accuracyPct    Float @default(0)
+  avgPoints      Float @default(0)
+  currentStreak  Int   @default(0)
+  bestStreak     Int   @default(0)
+  worstStreak    Int   @default(0)
+
+  lastPredictionAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  season Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([seasonId, userId])
+  @@index([seasonId, rank])
+  @@map("leaderboard_entries")
+}
+
+// --------------------------------------------------------------- postignuca
+
+model Achievement {
+  id          String          @id @default(cuid())
+  code        String          @unique
+  name        String
+  description String
+  icon        String
+  tier        AchievementTier @default(BRONCA)
+  /// Redoslijed prikaza u vitrini.
+  sortOrder   Int             @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  unlocks UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  seasonId      String
+  unlockedAt    DateTime @default(now())
+  /// Kontekst otkljucavanja (npr. protivnik, niz) za prikaz u obavijesti.
+  context       Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  season      Season      @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId, seasonId])
+  @@index([userId])
+  @@map("user_achievements")
+}
+
+// -------------------------------------------------------------------- roast
+
+/// Predmemorija generiranih poruka. Deterministicki generator ne treba bazu,
+/// ali AI varijanta se ovdje cuva 24h po korisniku i ostaje vidljiva adminu.
+model RoastMessage {
+  id       String      @id @default(cuid())
+  userId   String?
+  seasonId String?
+  tone     String
+  text     String
+  source   RoastSource @default(GENERATED)
+  /// Hash konteksta iz kojeg je poruka nastala - kljuc predmemorije.
+  contextHash String
+  shownAt     DateTime?
+  expiresAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  season Season? @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@index([userId, contextHash])
+  @@index([expiresAt])
+  @@map("roast_messages")
+}
+
+// --------------------------------------------------------------- obavijesti
+
+model Notification {
+  id      String           @id @default(cuid())
+  userId  String
+  type    NotificationType
+  title   String
+  body    String
+  /// Opcionalna poveznica na utakmicu radi dubinskog linka.
+  matchId String?
+  readAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+// -------------------------------------------------------------------- revizija
+
+model AuditLog {
+  id       String  @id @default(cuid())
+  actorId  String?
+  action   String
+  entity   String
+  entityId String?
+  before   Json?
+  after    Json?
+  ip       String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([actorId, createdAt])
+  @@map("audit_logs")
+}
+
+/// Zapis pokusaja prijave - temelj ogranicavanja broja pokusaja bez Redisa.
+model LoginAttempt {
+  id       String  @id @default(cuid())
+  username String
+  ip       String
+  success  Boolean
+
+  createdAt DateTime @default(now())
+
+  @@index([username, createdAt])
+  @@index([ip, createdAt])
+  @@map("login_attempts")
+}
+
+// ------------------------------------------------------------------- poslovi
+
+/// Idempotentnost pozadinskih poslova. `runKey` je jedinstven po poslu i
+/// prozoru izvrsavanja, pa dvostruki cron okidac ne moze dvaput obracunati bodove.
+model JobRun {
+  id       String    @id @default(cuid())
+  jobName  String
+  runKey   String    @unique
+  status   JobStatus @default(RUNNING)
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  /// Sazetak rezultata izvrsavanja (broj obradenih zapisa i slicno).
+  summary  Json?
+  error    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([jobName, startedAt])
+  @@map("job_runs")
+}

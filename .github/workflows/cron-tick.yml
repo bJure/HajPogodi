@@ -1,0 +1,57 @@
+name: Cron tick
+
+# Poziva /api/cron/tick, koji sam odlucuje sto je na redu:
+#  - sinkronizacija rasporeda, najvise jednom dnevno
+#  - dohvat rezultata, samo dok je utakmica u prozoru rezultata
+#  - podsjetnik na zakljucavanje, jednom po utakmici
+#
+# VAZNO: raspored svakih 5 minuta je besplatan samo na JAVNOM repozitoriju.
+# Na privatnom repozitoriju svako pokretanje naplacuje se kao cijela minuta
+# (~8.640 minuta mjesecno, a besplatno je 2.000), pa u tom slucaju ostavi samo
+# dnevni posao ovdje i prebaci cesti dio na Cloudflare Worker
+# (vidi worker/cron-worker.js).
+
+on:
+  schedule:
+    # Dnevno u 06:00 UTC - sigurno prije bilo kojeg termina utakmice.
+    - cron: '0 6 * * *'
+    # Svakih 5 minuta - gotovo svaki poziv zavrsi bez posla i jednim upitom.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+# Sprjecava da se dva pokretanja preklope ako je jedno sporo.
+concurrency:
+  group: cron-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Pozovi cron endpoint
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "Nedostaje APP_URL ili CRON_SECRET u GitHub secrets."
+            exit 1
+          fi
+
+          response=$(mktemp)
+          status=$(curl --silent --show-error --location \
+            --max-time 120 \
+            --write-out '%{http_code}' \
+            --output "$response" \
+            --request POST \
+            --header "x-cron-secret: $CRON_SECRET" \
+            "$APP_URL/api/cron/tick")
+
+          echo "HTTP $status"
+          cat "$response"
+          echo
+
+          if [ "$status" -ne 200 ]; then
+            exit 1
+          fi

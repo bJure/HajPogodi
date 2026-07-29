@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hajpogodi-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hajpogodi
+      POSTGRES_PASSWORD: hajpogodi
+      POSTGRES_DB: hajpogodi
+    ports:
+      - '5432:5432'
+    volumes:
+      - hajpogodi-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U hajpogodi -d hajpogodi']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  hajpogodi-pgdata:
