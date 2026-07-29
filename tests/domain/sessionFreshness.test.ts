@@ -45,27 +45,31 @@ describe('svjezina sesije nakon promjene lozinke', () => {
 });
 
 /**
- * The seed has always demanded 12 characters for the first admin. An account
- * whose password an administrator picks is worth exactly as much protection, so
- * every path that sets a password uses the same rule - this test fails if one
- * of them drifts back down.
+ * There is no minimum password length: the group is closed and the login rate
+ * limit is what guards an account. What must not drift is that every path which
+ * sets a password behaves the same - a length rule reintroduced on one path but
+ * not the others would let an admin set a password the owner cannot then keep.
+ * Empty stays rejected, because a blank field is a slip, not a choice.
  */
 describe('politika lozinke je jedna za sve putove', () => {
   const base = { username: 'pero', nickname: 'Pero', role: 'USER' as const };
 
-  it('odbija lozinku od 11 znakova pri otvaranju racuna', () => {
-    expect(createUserSchema.safeParse({ ...base, password: 'a'.repeat(11) }).success).toBe(false);
+  it('prihvaca kratku lozinku pri otvaranju racuna', () => {
+    expect(createUserSchema.safeParse({ ...base, password: 'ab' }).success).toBe(true);
   });
 
-  it('prihvaca lozinku od 12 znakova pri otvaranju racuna', () => {
-    expect(createUserSchema.safeParse({ ...base, password: 'a'.repeat(12) }).success).toBe(true);
+  it('prihvaca kratku lozinku i kad ju admin postavlja resetom', () => {
+    expect(resetPasswordSchema.safeParse({ id: 'u1', newPassword: 'ab' }).success).toBe(true);
   });
 
-  it('odbija kratku lozinku i kad ju admin postavlja resetom', () => {
-    const short = resetPasswordSchema.safeParse({ id: 'u1', newPassword: 'a'.repeat(11) });
-    expect(short.success).toBe(false);
+  it('odbija praznu lozinku na oba puta', () => {
+    expect(createUserSchema.safeParse({ ...base, password: '' }).success).toBe(false);
+    expect(resetPasswordSchema.safeParse({ id: 'u1', newPassword: '' }).success).toBe(false);
+  });
 
-    const ok = resetPasswordSchema.safeParse({ id: 'u1', newPassword: 'a'.repeat(12) });
-    expect(ok.success).toBe(true);
+  it('odbija lozinku dulju od 128 znakova, jer je gornja granica ostala', () => {
+    const tooLong = 'a'.repeat(129);
+    expect(createUserSchema.safeParse({ ...base, password: tooLong }).success).toBe(false);
+    expect(resetPasswordSchema.safeParse({ id: 'u1', newPassword: tooLong }).success).toBe(false);
   });
 });

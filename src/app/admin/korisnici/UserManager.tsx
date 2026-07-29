@@ -47,7 +47,7 @@ export function UserManager({ users, currentUserId }: { users: UserDto[]; curren
               <Field label="Nadimak" htmlFor="new-nickname" hint="Prikazuje se na ljestvici.">
                 <Input id="new-nickname" name="nickname" required autoComplete="off" />
               </Field>
-              <Field label="Lozinka" htmlFor="new-password" hint="Barem 12 znakova.">
+              <Field label="Lozinka" htmlFor="new-password">
                 <Input id="new-password" name="password" type="text" required autoComplete="off" />
               </Field>
               <Field label="Uloga" htmlFor="new-role">

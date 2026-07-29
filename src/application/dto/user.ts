@@ -29,13 +29,14 @@ const username = z
 
 /**
  * One rule for every path that sets a password: admin creating an account,
- * admin resetting one, user changing their own. The seed already demanded 12
- * for the first admin, and an account whose password an admin picked is no less
- * worth protecting than that one.
+ * admin resetting one, user changing their own. There is no minimum length -
+ * this is a closed group of friends, and the rate limit on the login route is
+ * what actually stands between an account and a guessing attempt. The only
+ * requirement is that the field is not left empty.
  */
 const password = z
   .string()
-  .min(12, 'Lozinka mora imati barem 12 znakova')
+  .min(1, 'Unesi lozinku')
   .max(128, 'Lozinka može imati najviše 128 znakova');
 
 const nickname = z

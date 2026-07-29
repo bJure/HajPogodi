@@ -153,7 +153,7 @@ src/
 
 ## Sigurnost
 
-- Lozinke: `scrypt` (N=32768, r=8), nasumična sol po lozinci, usporedba u konstantnom vremenu. Najmanje 12 znakova, na svim putovima koji postavljaju lozinku.
+- Lozinke: `scrypt` (N=32768, r=8), nasumična sol po lozinci, usporedba u konstantnom vremenu. Bez donje granice duljine — grupa je zatvorena, a račun čuva ograničenje prijave. Odbija se samo prazna lozinka i ona dulja od 128 znakova, jednako na svim putovima koji postavljaju lozinku. Iznimka je `SEED_ADMIN_PASSWORD`, koji i dalje traži 12 znakova.
 - Ograničenje prijave: 5 neuspjeha po korisničkom imenu i 15 po IP-u u 15 minuta, brojano iz baze. Isto ograničenje pokriva i unos trenutne lozinke na stranici za promjenu.
 - IP se čita iz `x-vercel-forwarded-for`, koji postavlja platforma. `x-forwarded-for` šalje klijent, pa bi ograničenje po IP-u s njim bilo ukrasno.
 - Ista poruka za nepostojećeg korisnika i krivu lozinku, uz jednako trošenje CPU-a — bez toga se popis korisnika može izvući mjerenjem vremena.
