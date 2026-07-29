@@ -19,6 +19,16 @@ const STATUS_BY_CODE: Record<DomainErrorCode, number> = {
 };
 
 /**
+ * Every route behind this wrapper answers per-user data or triggers work. None
+ * of it may be held by the CDN or by a corporate proxy on the way, so the
+ * no-store header is set here rather than trusted to route-segment defaults.
+ */
+function noStore(response: NextResponse): NextResponse {
+  response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+  return response;
+}
+
+/**
  * Wraps a route handler with the same error contract as server actions, mapping
  * domain error codes onto HTTP status codes.
  */
@@ -30,25 +40,31 @@ export async function withRoute(
   const log = logger.child({ correlationId, route: name });
 
   try {
-    return await fn();
+    return noStore(await fn());
   } catch (error) {
     if (error instanceof AppError) {
       log.info({ code: error.domain.code }, 'zahtjev odbijen');
-      return NextResponse.json(
-        { error: error.domain.message, code: error.domain.code },
-        { status: STATUS_BY_CODE[error.domain.code] },
+      return noStore(
+        NextResponse.json(
+          { error: error.domain.message, code: error.domain.code },
+          { status: STATUS_BY_CODE[error.domain.code] },
+        ),
       );
     }
 
     if (error instanceof z.ZodError) {
       log.info({ issues: error.issues.length }, 'neispravan zahtjev');
-      return NextResponse.json({ error: 'Neispravan zahtjev.', code: 'VALIDATION' }, { status: 400 });
+      return noStore(
+        NextResponse.json({ error: 'Neispravan zahtjev.', code: 'VALIDATION' }, { status: 400 }),
+      );
     }
 
     log.error({ err: error }, 'neocekivana greska u ruti');
-    return NextResponse.json(
-      { error: 'Neočekivana greška.', correlationId: correlationId.slice(0, 8) },
-      { status: 500 },
+    return noStore(
+      NextResponse.json(
+        { error: 'Neočekivana greška.', correlationId: correlationId.slice(0, 8) },
+        { status: 500 },
+      ),
     );
   }
 }

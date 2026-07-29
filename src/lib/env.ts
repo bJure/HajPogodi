@@ -41,7 +41,12 @@ const envSchema = z.object({
     .string()
     .min(32, 'AUTH_SECRET mora imati barem 32 znaka')
     .refine(notPlaceholder, placeholderMessage('AUTH_SECRET')),
-  AUTH_URL: z.url().optional(),
+  // An empty value in a copied .env means "not set", not "the empty URL" -
+  // without this it fails as `Invalid URL`, which says nothing about the fix.
+  AUTH_URL: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z.url().optional(),
+  ),
 
   CRON_SECRET: z
     .string()
@@ -54,7 +59,18 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().default(''),
 
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
-});
+})
+  /**
+   * Auth.js runs with `trustHost: true`, which it must on a platform that
+   * terminates TLS in front of the app. That makes the Host header the source of
+   * truth for callback URLs unless an explicit one is configured - so in
+   * production an explicit one is not optional.
+   */
+  .refine((env) => env.NODE_ENV !== 'production' || Boolean(env.AUTH_URL), {
+    path: ['AUTH_URL'],
+    message:
+      'AUTH_URL je obavezan u produkciji — bez njega Host zaglavlje odreduje callback URL-ove',
+  });
 
 export type Env = z.infer<typeof envSchema>;
 

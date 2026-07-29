@@ -29,6 +29,11 @@ export const maxDuration = 60;
  *
  * Every item is claimed through a unique `runKey`, so two overlapping cron
  * triggers cannot double-score a match.
+ *
+ * The response body says only whether each item ran, never why it failed. The
+ * caller is a CI job on a public repository, so anything returned here can end
+ * up in world-readable logs; the message itself goes to the application log and
+ * to `JobRun.error`, both of which are private.
  */
 const SYNC_MIN_INTERVAL_HOURS = 20;
 
@@ -80,7 +85,7 @@ async function handle(request: NextRequest): Promise<NextResponse> {
         const message = error instanceof Error ? error.message : String(error);
         await jobRunRepository.fail(syncKey, message);
         logger.error({ err: error }, 'sinkronizacija rasporeda nije uspjela');
-        results.sync = { error: message };
+        results.sync = { failed: true };
       }
     } else {
       results.sync = { skipped: true };
@@ -101,7 +106,7 @@ async function handle(request: NextRequest): Promise<NextResponse> {
         const message = error instanceof Error ? error.message : String(error);
         await jobRunRepository.fail(pollKey, message);
         logger.error({ err: error }, 'provjera rezultata nije uspjela');
-        results.poll = { error: message };
+        results.poll = { failed: true };
       }
     } else {
       results.poll = { skipped: true };
@@ -138,7 +143,7 @@ export async function POST(request: NextRequest) {
   return withRoute('cron/tick', () => handle(request));
 }
 
-/** GET is supported so a browser or uptime pinger can trigger it too. */
+/** GET is supported so an uptime pinger that can set the header can drive it too. */
 export async function GET(request: NextRequest) {
   return withRoute('cron/tick', () => handle(request));
 }

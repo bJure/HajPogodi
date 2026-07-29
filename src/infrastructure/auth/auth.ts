@@ -1,10 +1,10 @@
 import NextAuth, { type NextAuthConfig } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import { headers } from 'next/headers';
 import { loginSchema } from '@/application/dto/user';
 import { getEnv } from '@/lib/env';
 import { logger } from '@/infrastructure/logging/logger';
 import { userRepository } from '@/infrastructure/repositories/userRepository';
+import { clientIp } from './clientIp';
 import { dummyVerify, passwordHasher } from './password';
 import { checkLoginRateLimit, recordLoginAttempt } from './rateLimit';
 
@@ -17,14 +17,6 @@ import { checkLoginRateLimit, recordLoginAttempt } from './rateLimit';
  * the user on every protected request, so deactivating someone takes effect
  * immediately instead of whenever their token happens to expire.
  */
-
-/** Best-effort client IP, used only for rate limiting. */
-async function clientIp(): Promise<string> {
-  const headerList = await headers();
-  const forwarded = headerList.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]?.trim() ?? 'unknown';
-  return headerList.get('x-real-ip') ?? 'unknown';
-}
 
 export const authConfig: NextAuthConfig = {
   secret: getEnv().AUTH_SECRET,
@@ -113,6 +105,9 @@ export const authConfig: NextAuthConfig = {
       session.user.role = token.role ?? 'USER';
       session.user.nickname = token.nickname ?? session.user.name ?? '';
       session.user.mustChangePassword = token.mustChangePassword ?? false;
+      // Carried through so `getCurrentUser` can compare it against the user's
+      // `passwordChangedAt` and reject tokens older than the current password.
+      session.user.tokenIssuedAt = token.iat ?? 0;
       return session;
     },
   },

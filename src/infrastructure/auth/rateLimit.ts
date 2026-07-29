@@ -55,3 +55,30 @@ export async function recordLoginAttempt(
 }
 
 export const RATE_LIMIT_MESSAGE = `Previše neuspjelih pokušaja. Pokušaj ponovno za ${RATE_LIMIT.windowMinutes} minuta.`;
+
+/**
+ * The change-password form asks for the current password, which makes it a
+ * second place where a password can be guessed - one that the login throttle
+ * does not cover, because reaching it needs a session rather than credentials.
+ * A stolen laptop left signed in is exactly the case this closes.
+ *
+ * Attempts are recorded under a namespaced key so they occupy their own
+ * per-username bucket: mistyping the current password five times must not lock
+ * the account out of logging in.
+ */
+const PASSWORD_CHANGE_KEY = (userId: string) => `promjena-lozinke:${userId}`;
+
+export async function checkPasswordChangeRateLimit(
+  userId: string,
+  ip: string,
+): Promise<RateLimitVerdict> {
+  return checkLoginRateLimit(PASSWORD_CHANGE_KEY(userId), ip);
+}
+
+export async function recordPasswordChangeAttempt(
+  userId: string,
+  ip: string,
+  success: boolean,
+): Promise<void> {
+  await recordLoginAttempt(PASSWORD_CHANGE_KEY(userId), ip, success);
+}

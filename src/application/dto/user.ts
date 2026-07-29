@@ -27,9 +27,15 @@ const username = z
   .max(32, 'Korisničko ime može imati najviše 32 znaka')
   .regex(/^[a-zA-Z0-9._-]+$/, 'Dozvoljena su slova, brojke, točka, crtica i podvlaka');
 
+/**
+ * One rule for every path that sets a password: admin creating an account,
+ * admin resetting one, user changing their own. The seed already demanded 12
+ * for the first admin, and an account whose password an admin picked is no less
+ * worth protecting than that one.
+ */
 const password = z
   .string()
-  .min(8, 'Lozinka mora imati barem 8 znakova')
+  .min(12, 'Lozinka mora imati barem 12 znakova')
   .max(128, 'Lozinka može imati najviše 128 znakova');
 
 const nickname = z

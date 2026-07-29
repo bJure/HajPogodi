@@ -24,6 +24,9 @@ concurrency:
   group: cron-tick
   cancel-in-progress: false
 
+# Ovaj posao samo zove HTTP endpoint - ne treba mu pristup repozitoriju.
+permissions: {}
+
 jobs:
   tick:
     runs-on: ubuntu-latest
@@ -39,19 +42,20 @@ jobs:
             exit 1
           fi
 
-          response=$(mktemp)
+          # Tijelo odgovora se namjerno NE ispisuje. Repozitorij je javan, pa su
+          # i logovi Actionsa javni i trajni; sve sto endpoint vrati zavrsilo bi
+          # u njima. Detalji greske zive u logu aplikacije, pod correlation ID-em.
           status=$(curl --silent --show-error --location \
             --max-time 120 \
             --write-out '%{http_code}' \
-            --output "$response" \
+            --output /dev/null \
             --request POST \
             --header "x-cron-secret: $CRON_SECRET" \
             "$APP_URL/api/cron/tick")
 
           echo "HTTP $status"
-          cat "$response"
-          echo
 
           if [ "$status" -ne 200 ]; then
+            echo "Cron tick nije uspio. Pogledaj logove aplikacije na Vercelu."
             exit 1
           fi

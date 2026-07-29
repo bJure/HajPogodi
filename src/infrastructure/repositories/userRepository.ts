@@ -34,10 +34,12 @@ export const userRepository: UserRepository = {
   setActive: (id, isActive, updatedById) =>
     prisma.user.update({ where: { id }, data: { isActive, updatedById } }),
 
+  // `passwordChangedAt` is what invalidates tokens issued before this moment,
+  // so it is written here rather than left to callers to remember.
   setPassword: (id, passwordHash, mustChangePassword, updatedById) =>
     prisma.user.update({
       where: { id },
-      data: { passwordHash, mustChangePassword, updatedById },
+      data: { passwordHash, mustChangePassword, updatedById, passwordChangedAt: new Date() },
     }),
 
   markLogin: async (id) => {

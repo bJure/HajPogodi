@@ -66,7 +66,7 @@ Umjesto `docker compose up -d` otvori besplatnu bazu na [neon.tech](https://neon
 |---|---|---|
 | `DATABASE_URL` | da | Postgres connection string |
 | `AUTH_SECRET` | da | Ključ za potpisivanje sesija, min. 32 znaka |
-| `AUTH_URL` | u produkciji | Puni URL aplikacije |
+| `AUTH_URL` | u produkciji | Puni URL aplikacije. Bez njega aplikacija u produkciji odbija start |
 | `CRON_SECRET` | da | Zajednička tajna za `/api/cron/tick`, min. 16 znakova |
 | `API_FOOTBALL_KEY` | ne | Bez njega nema automatske sinkronizacije; utakmice se unose ručno |
 | `API_FOOTBALL_TEAM_ID` | ne | ID Hajduka, zadano `620` |
@@ -153,26 +153,31 @@ src/
 
 ## Sigurnost
 
-- Lozinke: `scrypt` (N=32768, r=8), nasumična sol po lozinci, usporedba u konstantnom vremenu.
-- Ograničenje prijave: 5 neuspjeha po korisničkom imenu i 15 po IP-u u 15 minuta, brojano iz baze.
+- Lozinke: `scrypt` (N=32768, r=8), nasumična sol po lozinci, usporedba u konstantnom vremenu. Najmanje 12 znakova, na svim putovima koji postavljaju lozinku.
+- Ograničenje prijave: 5 neuspjeha po korisničkom imenu i 15 po IP-u u 15 minuta, brojano iz baze. Isto ograničenje pokriva i unos trenutne lozinke na stranici za promjenu.
+- IP se čita iz `x-vercel-forwarded-for`, koji postavlja platforma. `x-forwarded-for` šalje klijent, pa bi ograničenje po IP-u s njim bilo ukrasno.
 - Ista poruka za nepostojećeg korisnika i krivu lozinku, uz jednako trošenje CPU-a — bez toga se popis korisnika može izvući mjerenjem vremena.
 - Middleware samo preusmjerava; stvarnu provjeru radi `requireUser` / `requireAdmin`, koji korisnika ponovno čitaju iz baze. Deaktivacija zato djeluje odmah, a ne tek kad token istekne.
+- Promjena lozinke poništava sve ostale sesije: token izdan prije `passwordChangedAt` odbija se pri sljedećem zahtjevu. JWT se inače ne može opozvati.
 - Svaki unos ide kroz Zod. Rezultati i prognoze ograničeni na 0–20 golova.
 - Svaka administratorska radnja piše zapis u `AuditLog`.
-- CSP i sigurnosna zaglavlja u `next.config.ts`.
+- CSP s nonceom po odgovoru, u `src/middleware.ts`. Ostala sigurnosna zaglavlja su statična i stoje u `next.config.ts`.
+- Odgovori `/api/*` nose `Cache-Control: private, no-store` — autenticirani JSON ne smije ostati ni u jednom međuspremniku.
+
+Prijava ranjivosti i model prijetnje: [`SECURITY.md`](SECURITY.md).
 
 ---
 
 ## Testovi
 
 ```bash
-npm test          # 102 testa, bez baze
+npm test          # 112 testova, bez baze
 npm run typecheck
 npm run lint
 npm run build
 ```
 
-Testovi pokrivaju bodovanje i njegovu proširivost, zaključavanje (uključujući slučaj kad cron nije radio), prozor dohvata rezultata, determinizam roasta i doseg svih tonova, statistiku i nizove, postignuća, mapiranje s API-Footballa, hashiranje lozinki i odbijanje placeholder tajni.
+Testovi pokrivaju bodovanje i njegovu proširivost, zaključavanje (uključujući slučaj kad cron nije radio), prozor dohvata rezultata, determinizam roasta i doseg svih tonova, statistiku i nizove, postignuća, mapiranje s API-Footballa, hashiranje lozinki, poništavanje sesija nakon promjene lozinke i odbijanje placeholder tajni.
 
 ---
 

@@ -48,6 +48,18 @@
   "engines": {
     "node": ">=20.9.0"
   },
+  "//overrides": [
+    "Next 16.2.12 is the newest stable release and still pins postcss 8.4.31 and",
+    "sharp 0.34.5, both of which carry high-severity advisories (the fix only exists",
+    "on the 16.3 preview line). Both are drop-in compatible minor bumps, so they are",
+    "forced here rather than shipping known-vulnerable versions. With them in place",
+    "`npm audit --omit=dev` reports nothing, which is what CI blocks on.",
+    "Remove these once a stable Next ships the patched versions itself."
+  ],
+  "overrides": {
+    "postcss": "^8.5.24",
+    "sharp": "^0.35.3"
+  },
   "allowScripts": {
     "@prisma/client@6.19.3": true,
     "@prisma/engines@6.19.3": true,

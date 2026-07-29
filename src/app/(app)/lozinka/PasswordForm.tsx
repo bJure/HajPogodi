@@ -52,7 +52,7 @@ export function PasswordForm({ forced }: { forced: boolean }) {
         label="Nova lozinka"
         htmlFor="newPassword"
         error={fields?.newPassword}
-        hint="Barem 8 znakova."
+        hint="Barem 12 znakova."
       >
         <Input
           id="newPassword"

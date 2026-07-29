@@ -7,6 +7,8 @@ declare module 'next-auth' {
       role: 'ADMIN' | 'USER';
       nickname: string;
       mustChangePassword: boolean;
+      /** `iat` of the underlying JWT, in seconds. */
+      tokenIssuedAt: number;
     } & DefaultSession['user'];
   }
 

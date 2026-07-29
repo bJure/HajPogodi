@@ -1,6 +1,7 @@
 import 'server-only';
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
+import { issuedBeforePasswordChange } from '@/domain/auth/sessionFreshness';
 import { Errors } from '@/domain/shared/DomainError';
 import { throwDomain } from '@/lib/action';
 import { userRepository } from '@/infrastructure/repositories/userRepository';
@@ -31,6 +32,10 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 
   const user = await userRepository.findById(session.user.id);
   if (!user || !user.isActive) return null;
+
+  if (issuedBeforePasswordChange(session.user.tokenIssuedAt, user.passwordChangedAt)) {
+    return null;
+  }
 
   return {
     id: user.id,

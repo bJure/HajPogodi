@@ -49,6 +49,9 @@ describe('provjera konfiguracije odbija placeholdere', () => {
   beforeEach(() => {
     // getEnv caches its result, so each case needs a fresh module instance.
     vi.resetModules();
+    // Stubs persist across cases in a file; without this, a variable set by one
+    // case silently decides the outcome of the next.
+    vi.unstubAllEnvs();
   });
 
   async function loadEnv(overrides: Record<string, string>) {
@@ -91,5 +94,22 @@ describe('provjera konfiguracije odbija placeholdere', () => {
   it('odbija kratak CRON_SECRET', async () => {
     const getEnv = await loadEnv({ CRON_SECRET: 'prekratko' });
     expect(() => getEnv()).toThrow(/CRON_SECRET/);
+  });
+
+  it('trazi AUTH_URL u produkciji, jer inace Host zaglavlje odreduje callback URL-ove', async () => {
+    // Auth.js radi s `trustHost: true`, sto mora na platformi koja terminira TLS
+    // ispred aplikacije. Bez eksplicitnog AUTH_URL-a napadac koji posalje tudi
+    // Host odreduje kamo prijava vodi.
+    vi.stubEnv('NODE_ENV', 'production');
+    for (const [key, value] of Object.entries(VALID)) vi.stubEnv(key, value);
+    vi.stubEnv('AUTH_URL', '');
+
+    const { getEnv } = await import('@/lib/env');
+    expect(() => getEnv()).toThrow(/AUTH_URL/);
+  });
+
+  it('ne trazi AUTH_URL izvan produkcije', async () => {
+    const getEnv = await loadEnv({});
+    expect(getEnv().AUTH_URL).toBeUndefined();
   });
 });

@@ -1,0 +1,35 @@
+version: 2
+
+# Sigurnosne nadogradnje stizu automatski cim GitHub objavi savjetovanje;
+# tjedni raspored ispod pokriva obicne verzije. Grupiranje postoji da se ne
+# otvori deset pull requestova za jedan Next release.
+updates:
+  - package-ecosystem: npm
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      next:
+        patterns:
+          - 'next'
+          - 'eslint-config-next'
+          - '@next/*'
+      react:
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
+      prisma:
+        patterns:
+          - 'prisma'
+          - '@prisma/*'
+      razvojne:
+        dependency-type: development
+
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: monthly

@@ -3,7 +3,13 @@ import { Errors } from '@/domain/shared/DomainError';
 import type { UserDto } from '@/application/dto/user';
 import type { UserRow } from '@/application/ports/repositories';
 import { throwDomain } from '@/lib/action';
+import { clientIp } from '@/infrastructure/auth/clientIp';
 import { passwordHasher } from '@/infrastructure/auth/password';
+import {
+  checkPasswordChangeRateLimit,
+  recordPasswordChangeAttempt,
+  RATE_LIMIT_MESSAGE,
+} from '@/infrastructure/auth/rateLimit';
 import { auditRepository } from '@/infrastructure/repositories/supportRepositories';
 import { userRepository } from '@/infrastructure/repositories/userRepository';
 import { logger } from '@/infrastructure/logging/logger';
@@ -160,8 +166,16 @@ export async function changeOwnPassword(
   const user = await userRepository.findById(userId);
   if (!user) throwDomain(Errors.notFound('Korisnik'));
 
+  const ip = await clientIp();
+  const limit = await checkPasswordChangeRateLimit(userId, ip);
+  if (limit.blocked) {
+    logger.warn({ userId, reason: limit.reason }, 'promjena lozinke blokirana zbog ogranicenja');
+    throwDomain(Errors.rateLimited(RATE_LIMIT_MESSAGE));
+  }
+
   const valid = await passwordHasher.verify(input.currentPassword, user.passwordHash);
   if (!valid) {
+    await recordPasswordChangeAttempt(userId, ip, false);
     throwDomain(
       Errors.validation('Trenutna lozinka nije točna.', {
         currentPassword: 'Trenutna lozinka nije točna.',
@@ -183,6 +197,7 @@ export async function changeOwnPassword(
     false,
     userId,
   );
+  await recordPasswordChangeAttempt(userId, ip, true);
 
   await auditRepository.record({
     actorId: userId,

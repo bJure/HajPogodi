@@ -1,27 +1,15 @@
 import type { NextConfig } from 'next';
 
 /**
- * Security headers applied to every response.
+ * Static security headers.
  *
- * The CSP allows 'unsafe-inline' for styles because Tailwind's runtime layer and
- * Recharts both emit inline style attributes. Scripts stay nonce-free but are
- * restricted to 'self'; Next's inline bootstrap requires 'unsafe-inline' in dev
- * only, so the directive is tightened in production builds.
+ * The Content-Security-Policy is deliberately NOT here: it needs a per-response
+ * nonce, and headers declared in this file are the same for every request. It
+ * is set in `src/middleware.ts` instead, which covers every page route. The
+ * paths the middleware matcher skips are `/api` (JSON, where a CSP does
+ * nothing) and `/_next/*` (build output, never navigated to directly).
  */
 const isProd = process.env.NODE_ENV === 'production';
-
-const csp = [
-  "default-src 'self'",
-  `script-src 'self' ${isProd ? "'unsafe-inline'" : "'unsafe-inline' 'unsafe-eval'"}`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://media.api-sports.io",
-  "font-src 'self' data:",
-  "connect-src 'self'",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "object-src 'none'",
-].join('; ');
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -35,7 +23,6 @@ const nextConfig: NextConfig = {
       {
         source: '/:path*',
         headers: [
-          { key: 'Content-Security-Policy', value: csp },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },

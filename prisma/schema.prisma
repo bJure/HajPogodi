@@ -90,6 +90,10 @@ model User {
   /// Prisiljava promjenu lozinke pri sljedecoj prijavi (nakon reseta od admina).
   mustChangePassword Boolean   @default(false)
   lastLoginAt        DateTime?
+  /// Trenutak zadnje promjene lozinke. Sesije su JWT-ovi koje se ne moze
+  /// opozvati u bazi, pa se svaki token izdan prije ovog trenutka odbija pri
+  /// sljedecem zahtjevu - promjena lozinke time odjavljuje sve ostale uredaje.
+  passwordChangedAt  DateTime?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

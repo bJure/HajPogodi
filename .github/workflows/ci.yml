@@ -1,0 +1,74 @@
+name: CI
+
+# Repozitorij je javan, pa je ovo jedina obrana koja se izvrsava sama:
+# lint, tipovi, testovi i revizija ovisnosti na svakom push i pull requestu.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  provjera:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      # Prisma generate cita datasource iz sheme; vrijednost se nikad ne spaja,
+      # ali mora postojati da CLI ne prekine rad.
+      DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci?schema=public'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instaliraj ovisnosti
+        run: npm ci
+
+      - name: Generiraj Prisma klijent
+        run: npm run db:generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Provjera tipova
+        run: npm run typecheck
+
+      - name: Testovi
+        run: npm test
+
+  revizija-ovisnosti:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # Blokira samo ono sto zavrsi u produkciji. Prag je `high`; `moderate` na
+      # Next stogu proizvodi previse suma da bi itko citao rezultat.
+      - name: npm audit (produkcijske ovisnosti)
+        run: npm audit --omit=dev --audit-level=high
+
+      # Razvojni lanac se i dalje prijavljuje, ali ne obara CI: savjetovanja u
+      # lint alatima su stalna, a ne isporucuju se korisnicima. Za njih postoji
+      # Dependabot, koji otvara pull request umjesto da blokira tudi rad.
+      - name: npm audit (sve, informativno)
+        continue-on-error: true
+        run: npm audit --audit-level=high
