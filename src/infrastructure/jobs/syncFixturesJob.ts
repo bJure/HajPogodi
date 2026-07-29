@@ -2,7 +2,8 @@ import 'server-only';
 import type { FixtureDto, FootballApiPort } from '@/application/ports/services';
 import type { MatchRow } from '@/application/ports/repositories';
 import { logger } from '@/infrastructure/logging/logger';
-import { apiFootballClient, shortenTeamName } from '@/infrastructure/football/apiFootballClient';
+import { shortenTeamName } from '@/infrastructure/football/apiFootballClient';
+import { compositeFootballApi } from '@/infrastructure/football/compositeClient';
 import {
   competitionRepository,
   matchRepository,
@@ -34,7 +35,7 @@ export interface SyncFixturesSummary {
 const OVERRIDABLE = ['kickoffAt', 'competitionId', 'opponentId', 'isHome', 'round', 'venue'] as const;
 
 export async function runSyncFixtures(
-  api: FootballApiPort = apiFootballClient,
+  api: FootballApiPort = compositeFootballApi,
 ): Promise<SyncFixturesSummary> {
   const season = await seasonRepository.findActive();
   if (!season) {

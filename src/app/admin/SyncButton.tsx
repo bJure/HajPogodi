@@ -10,7 +10,7 @@ import { syncFixturesAction } from './actions';
  * exists so an admin does not have to wait for the next tick after adding an
  * API key or fixing a season year.
  */
-export function SyncButton({ disabled }: { disabled: boolean }) {
+export function SyncButton({ disabled = false }: { disabled?: boolean }) {
   const router = useRouter();
   const [state, formAction] = useActionState(syncFixturesAction, null);
 

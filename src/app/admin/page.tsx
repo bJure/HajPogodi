@@ -6,7 +6,7 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { ActionButton } from '@/components/admin/ActionForm';
 import { SyncButton } from './SyncButton';
 import { formatDateTime } from '@/lib/format';
-import { isFootballApiEnabled, isRoastAiEnabled } from '@/lib/env';
+import { isRoastAiEnabled } from '@/lib/env';
 import { seasonRepository } from '@/infrastructure/repositories/matchRepository';
 import {
   auditRepository,
@@ -67,7 +67,7 @@ export default async function AdminOverviewPage() {
 
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <SyncButton disabled={!isFootballApiEnabled()} />
+              <SyncButton />
               {season ? (
                 <ActionButton
                   action={recalculateAction}
@@ -80,12 +80,10 @@ export default async function AdminOverviewPage() {
               ) : null}
             </div>
 
-            {!isFootballApiEnabled() ? (
-              <p className="text-xs text-ink-faint">
-                Sinkronizacija je isključena jer <code>API_FOOTBALL_KEY</code> nije postavljen.
-                Utakmice se mogu unijeti ručno.
-              </p>
-            ) : null}
+            <p className="text-xs text-ink-faint">
+              Raspored dolazi s HNS semafora (HNL i kup) i ESPN-a (europska natjecanja). Nijedan
+              ne traži ključ. Utakmice se uvijek mogu unijeti i ručno.
+            </p>
 
             <dl className="space-y-1.5 border-t border-white/8 pt-3 text-xs">
               <Row label="Zadnja sinkronizacija" value={lastSync ? formatDateTime(lastSync.startedAt.toISOString()) : 'nikad'} />

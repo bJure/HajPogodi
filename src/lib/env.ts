@@ -95,8 +95,3 @@ export function getEnv(): Env {
 export function isRoastAiEnabled(): boolean {
   return getEnv().ANTHROPIC_API_KEY.length > 0;
 }
-
-/** True when live fixture syncing is configured. */
-export function isFootballApiEnabled(): boolean {
-  return getEnv().API_FOOTBALL_KEY.length > 0;
-}

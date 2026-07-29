@@ -46,7 +46,6 @@ import { evaluateSeasonAchievements } from '@/application/services/scoringServic
 import { runSyncFixtures } from '@/infrastructure/jobs/syncFixturesJob';
 import { requireAdmin } from '@/infrastructure/auth/session';
 import { actionOk, parseInput, withAction, type ActionResult } from '@/lib/action';
-import { isFootballApiEnabled } from '@/lib/env';
 import { Errors } from '@/domain/shared/DomainError';
 import { throwDomain } from '@/lib/action';
 
@@ -325,12 +324,6 @@ export async function syncFixturesAction(
 ): Promise<ActionResult<{ created: number; updated: number }>> {
   return withAction('admin/syncFixtures', async () => {
     await requireAdmin();
-
-    if (!isFootballApiEnabled()) {
-      throwDomain(
-        Errors.validation('API_FOOTBALL_KEY nije postavljen — sinkronizacija nije moguća.'),
-      );
-    }
 
     const summary = await runSyncFixtures();
     revalidateAdmin('/admin/utakmice', '/pocetna');

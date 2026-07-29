@@ -9,7 +9,6 @@ import { runSyncFixtures } from '@/infrastructure/jobs/syncFixturesJob';
 import { jobRunRepository } from '@/infrastructure/repositories/supportRepositories';
 import { seasonRepository } from '@/infrastructure/repositories/matchRepository';
 import { scorePendingMatches } from '@/application/services/scoringService';
-import { isFootballApiEnabled } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -69,7 +68,7 @@ async function handle(request: NextRequest): Promise<NextResponse> {
   const results: Record<string, unknown> = { at: now.toISOString() };
 
   // ---- 1. Schedule sync, at most once a day -------------------------------
-  if (isFootballApiEnabled()) {
+  {
     const syncKey = `sync-fixtures:${now.toISOString().slice(0, 10)}`;
     const lastSync = await jobRunRepository.lastRun('sync-fixtures');
     const dueForSync =
@@ -90,12 +89,10 @@ async function handle(request: NextRequest): Promise<NextResponse> {
     } else {
       results.sync = { skipped: true };
     }
-  } else {
-    results.sync = { skipped: true, reason: 'API_FOOTBALL_KEY nije postavljen' };
   }
 
   // ---- 2. Result poll ------------------------------------------------------
-  if (isFootballApiEnabled()) {
+  {
     const pollKey = `poll-results:${fiveMinuteKey(now)}`;
     if (await jobRunRepository.claim('poll-results', pollKey)) {
       try {
@@ -111,8 +108,6 @@ async function handle(request: NextRequest): Promise<NextResponse> {
     } else {
       results.poll = { skipped: true };
     }
-  } else {
-    results.poll = { skipped: true, reason: 'API_FOOTBALL_KEY nije postavljen' };
   }
 
   // ---- 3. Anything with a result but no points (e.g. entered by an admin) --

@@ -3,7 +3,7 @@ import type { FootballApiPort } from '@/application/ports/services';
 import { shouldPollForResult } from '@/domain/match/resultWindow';
 import { scoreMatch } from '@/application/services/scoringService';
 import { logger } from '@/infrastructure/logging/logger';
-import { apiFootballClient } from '@/infrastructure/football/apiFootballClient';
+import { compositeFootballApi } from '@/infrastructure/football/compositeClient';
 import {
   matchRepository,
   matchResultRepository,
@@ -25,7 +25,7 @@ export interface PollResultsSummary {
 
 export async function runPollResults(
   now: Date,
-  api: FootballApiPort = apiFootballClient,
+  api: FootballApiPort = compositeFootballApi,
 ): Promise<PollResultsSummary> {
   const candidates = await matchRepository.listAwaitingResult(now);
 
