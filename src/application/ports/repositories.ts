@@ -111,6 +111,8 @@ export interface MatchRepository {
   findNextOpen(seasonId: string, now: Date): Promise<MatchRow | null>;
   /** Confirmed matches whose result window may be open. */
   listAwaitingResult(now: Date): Promise<MatchRow[]>;
+  /** Unconfirmed matches close enough to kickoff to publish themselves. */
+  listDueForAutoConfirm(horizon: Date): Promise<MatchRow[]>;
   /** Finished matches with a stored result that have not been scored yet. */
   listUnscored(seasonId: string): Promise<MatchRow[]>;
   listRecentFinished(seasonId: string, limit: number): Promise<MatchRow[]>;

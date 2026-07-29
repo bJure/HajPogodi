@@ -6,6 +6,7 @@ import { logger } from '@/infrastructure/logging/logger';
 import { runLockReminders } from '@/infrastructure/jobs/lockReminderJob';
 import { runPollResults } from '@/infrastructure/jobs/pollResultsJob';
 import { runSyncFixtures } from '@/infrastructure/jobs/syncFixturesJob';
+import { runAutoConfirm } from '@/infrastructure/jobs/autoConfirmJob';
 import { jobRunRepository } from '@/infrastructure/repositories/supportRepositories';
 import { seasonRepository } from '@/infrastructure/repositories/matchRepository';
 import { scorePendingMatches } from '@/application/services/scoringService';
@@ -23,6 +24,7 @@ export const maxDuration = 60;
  *
  * Work items:
  *   - schedule sync: at most once per day
+ *   - auto-confirm:  publishes matches once kickoff is close
  *   - result poll:   only inside a match's result window
  *   - lock reminder: once per match, within an hour of kickoff
  *
@@ -91,7 +93,18 @@ async function handle(request: NextRequest): Promise<NextResponse> {
     }
   }
 
-  // ---- 2. Result poll ------------------------------------------------------
+  // ---- 2. Auto-confirm matches close to kickoff ----------------------------
+  // No job claim around this one: it is a single indexed query, it is
+  // idempotent, and unlike the sync it must still run on a day when no
+  // provider answered.
+  try {
+    results.autoConfirm = await runAutoConfirm(now);
+  } catch (error) {
+    logger.error({ err: error }, 'automatska potvrda utakmica nije uspjela');
+    results.autoConfirm = { failed: true };
+  }
+
+  // ---- 3. Result poll ------------------------------------------------------
   {
     const pollKey = `poll-results:${fiveMinuteKey(now)}`;
     if (await jobRunRepository.claim('poll-results', pollKey)) {
@@ -110,14 +123,14 @@ async function handle(request: NextRequest): Promise<NextResponse> {
     }
   }
 
-  // ---- 3. Anything with a result but no points (e.g. entered by an admin) --
+  // ---- 4. Anything with a result but no points (e.g. entered by an admin) --
   const season = await seasonRepository.findActive();
   if (season) {
     const scored = await scorePendingMatches(season.id);
     if (scored.length > 0) results.scored = scored;
   }
 
-  // ---- 4. Lock reminders, once per match -----------------------------------
+  // ---- 5. Lock reminders, once per match -----------------------------------
   const reminder = await runLockReminders(now);
   if (reminder.matchId && reminder.notified > 0) {
     const reminderKey = `lock-reminder:${reminder.matchId}`;

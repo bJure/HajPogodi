@@ -107,6 +107,17 @@ export const matchRepository: MatchRepository = {
 
   // Narrowed in SQL to the result window so the poller never loads the whole
   // season just to discard it; the exact predicate is re-checked in the domain.
+  listDueForAutoConfirm: (horizon) =>
+    prisma.match.findMany({
+      where: {
+        syncState: 'NEEDS_CONFIRMATION',
+        status: { notIn: ['CANCELLED', 'POSTPONED'] },
+        kickoffAt: { lte: horizon },
+      },
+      orderBy: { kickoffAt: 'asc' },
+      include: MATCH_INCLUDE,
+    }),
+
   listAwaitingResult: (now) =>
     prisma.match.findMany({
       where: {
