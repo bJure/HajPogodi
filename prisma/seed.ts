@@ -25,6 +25,16 @@ const HAJDUK = {
   apiFootballTeamId: Number(process.env.API_FOOTBALL_TEAM_ID ?? 620),
 };
 
+/** Anything that ever appeared in the public `.env.example`. */
+const PLACEHOLDER_PASSWORDS = new Set([
+  'promijeni-me',
+  'promijeni-me-odmah',
+  'promijeni-me-generiranom-tajnom',
+  'changeme',
+  'password',
+  'admin',
+]);
+
 const COMPETITIONS = [
   { name: 'SuperSport HNL', shortName: 'HNL', type: 'LEAGUE' as const, apiFootballLeagueId: 210 },
   { name: 'Hrvatski nogometni kup', shortName: 'Kup', type: 'CUP' as const, apiFootballLeagueId: 211 },
@@ -58,8 +68,17 @@ async function seedAdmin(): Promise<string> {
       'SEED_ADMIN_PASSWORD nije postavljen. Postavi ga u .env prije prvog pokretanja seeda.',
     );
   }
-  if (password.length < 8) {
-    throw new Error('SEED_ADMIN_PASSWORD mora imati barem 8 znakova.');
+  // 12 rather than 8: this account is an administrator and its password is the
+  // one people are most likely to leave as-is.
+  if (password.length < 12) {
+    throw new Error('SEED_ADMIN_PASSWORD mora imati barem 12 znakova.');
+  }
+  // `.env.example` is published in a public repository, so any value copied
+  // straight out of it is already public knowledge.
+  if (PLACEHOLDER_PASSWORDS.has(password.trim().toLowerCase())) {
+    throw new Error(
+      'SEED_ADMIN_PASSWORD je vrijednost iz .env.example, koja je javno dostupna. Smisli svoju.',
+    );
   }
 
   const user = await prisma.user.create({

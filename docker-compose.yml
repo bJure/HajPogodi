@@ -8,7 +8,9 @@ services:
       POSTGRES_PASSWORD: hajpogodi
       POSTGRES_DB: hajpogodi
     ports:
-      - '5432:5432'
+      # Vezano na loopback: lozinka je javna u ovom repozitoriju, pa baza ne
+      # smije biti dostupna s lokalne mreze. Za dev je ovo dovoljno.
+      - '127.0.0.1:5432:5432'
     volumes:
       - hajpogodi-pgdata:/var/lib/postgresql/data
     healthcheck:

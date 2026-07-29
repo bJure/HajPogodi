@@ -10,15 +10,43 @@ import { z } from 'zod';
  * being reachable, but any code path that actually touches configuration fails
  * loudly and immediately with the exact missing keys.
  */
+/**
+ * Values that appear in the public `.env.example`. Anything published in a
+ * public repository is not a secret, so a secret that still equals its
+ * placeholder is treated as missing rather than merely weak - otherwise
+ * copying the template and deploying yields a well-known CRON_SECRET that
+ * lets anyone drain the football API's daily quota.
+ */
+const PLACEHOLDERS = new Set([
+  'promijeni-me',
+  'promijeni-me-odmah',
+  'promijeni-me-generiranom-tajnom',
+  'changeme',
+  'secret',
+]);
+
+function notPlaceholder(value: string): boolean {
+  return !PLACEHOLDERS.has(value.trim().toLowerCase());
+}
+
+const placeholderMessage = (name: string) =>
+  `${name} je i dalje vrijednost iz .env.example — postavi vlastitu tajnu`;
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL je obavezan'),
 
-  AUTH_SECRET: z.string().min(32, 'AUTH_SECRET mora imati barem 32 znaka'),
+  AUTH_SECRET: z
+    .string()
+    .min(32, 'AUTH_SECRET mora imati barem 32 znaka')
+    .refine(notPlaceholder, placeholderMessage('AUTH_SECRET')),
   AUTH_URL: z.url().optional(),
 
-  CRON_SECRET: z.string().min(16, 'CRON_SECRET mora imati barem 16 znakova'),
+  CRON_SECRET: z
+    .string()
+    .min(16, 'CRON_SECRET mora imati barem 16 znakova')
+    .refine(notPlaceholder, placeholderMessage('CRON_SECRET')),
 
   API_FOOTBALL_KEY: z.string().default(''),
   API_FOOTBALL_TEAM_ID: z.coerce.number().int().positive().default(620),

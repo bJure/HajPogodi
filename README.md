@@ -75,6 +75,18 @@ Umjesto `docker compose up -d` otvori besplatnu bazu na [neon.tech](https://neon
 
 Aplikacija je **potpuno funkcionalna bez oba opcionalna ključa**. Bez `API_FOOTBALL_KEY` admin unosi utakmice i rezultate ručno; bez `ANTHROPIC_API_KEY` roast koristi lokalni generator.
 
+### Zašto su vrijednosti u `.env.example` prazne
+
+Repozitorij je javan, pa je svaka vrijednost u predlošku javno poznata. Da `.env.example` sadrži tajnu koja prolazi validaciju, tko god kopira predložak i deploya dobio bi `CRON_SECRET` koji svatko može pročitati — dovoljno da netko okida `/api/cron/tick` i potroši dnevnu kvotu API-Footballa.
+
+Zato tajne u predlošku stoje prazne, a kod **odbija pokretanje** ako ostanu placeholderi:
+
+- `AUTH_SECRET` i `CRON_SECRET` — provjera u `src/lib/env.ts` pada na poznatim placeholderima, neovisno o duljini
+- `SEED_ADMIN_PASSWORD` — seed traži najmanje 12 znakova i odbija poznate placeholdere
+- dev baza sluša samo na `127.0.0.1`, jer joj je lozinka u ovom repozitoriju
+
+Test `tests/domain/envPlaceholders.test.ts` pada ako netko ikad vrati upotrebljivu vrijednost u predložak.
+
 ---
 
 ## Objava na Vercel
@@ -154,13 +166,13 @@ src/
 ## Testovi
 
 ```bash
-npm test          # 92 testa, bez baze
+npm test          # 102 testa, bez baze
 npm run typecheck
 npm run lint
 npm run build
 ```
 
-Testovi pokrivaju bodovanje i njegovu proširivost, zaključavanje (uključujući slučaj kad cron nije radio), prozor dohvata rezultata, determinizam roasta i doseg svih tonova, statistiku i nizove, postignuća, mapiranje s API-Footballa i hashiranje lozinki.
+Testovi pokrivaju bodovanje i njegovu proširivost, zaključavanje (uključujući slučaj kad cron nije radio), prozor dohvata rezultata, determinizam roasta i doseg svih tonova, statistiku i nizove, postignuća, mapiranje s API-Footballa, hashiranje lozinki i odbijanje placeholder tajni.
 
 ---
 
