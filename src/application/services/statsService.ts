@@ -22,15 +22,17 @@ import { userRepository } from '@/infrastructure/repositories/userRepository';
  * the table, the table is the thing that is stale.
  */
 export async function getUserStats(userId: string, seasonId: string): Promise<UserStatsDto> {
-  const user = await userRepository.findById(userId);
-  if (!user) throwDomain(Errors.notFound('Korisnik'));
-
-  const [matches, predictions, entries, unlocked] = await Promise.all([
+  // The user lookup has no bearing on the other four, so it runs with them
+  // rather than in front of them - one round trip instead of two.
+  const [user, matches, predictions, entries, unlocked] = await Promise.all([
+    userRepository.findById(userId),
     matchRepository.listConfirmedBySeason(seasonId),
     predictionRepository.listByUserAndSeason(userId, seasonId),
     leaderboardRepository.listBySeason(seasonId),
     achievementRepository.listForUser(userId, seasonId),
   ]);
+
+  if (!user) throwDomain(Errors.notFound('Korisnik'));
 
   const byMatch = new Map(predictions.map((p) => [p.matchId, p] as const));
   const scoredMatches = matches.filter((m) => m.result !== null && m.scoredAt !== null);

@@ -20,9 +20,8 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
   return withRoute('live/utakmica', async () => {
-    const user = await requireUser();
     const now = new Date();
-    const season = await seasonRepository.findActive();
+    const [user, season] = await Promise.all([requireUser(), seasonRepository.findActive()]);
 
     if (!season) {
       return NextResponse.json({
@@ -46,7 +45,7 @@ export async function GET() {
 
     const [prediction, others] = await Promise.all([
       getMyPrediction(user.id, next.id),
-      listMatchPredictions(next.id, now, { revealBeforeLock: false }),
+      listMatchPredictions(next, now, { revealBeforeLock: false }),
     ]);
 
     return NextResponse.json({

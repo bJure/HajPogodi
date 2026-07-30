@@ -1,11 +1,9 @@
 import 'server-only';
 import type { LeaderboardDto, LeaderboardRowDto } from '@/application/dto/leaderboard';
+import type { SeasonRow } from '@/application/ports/repositories';
 import { pollHintFor } from '@/domain/match/pollHint';
 import { computeUserStats, type ScoredMatch } from '@/domain/stats/computeUserStats';
-import {
-  matchRepository,
-  seasonRepository,
-} from '@/infrastructure/repositories/matchRepository';
+import { matchRepository } from '@/infrastructure/repositories/matchRepository';
 import {
   leaderboardRepository,
   predictionRepository,
@@ -100,17 +98,33 @@ export async function recalculateLeaderboard(seasonId: string): Promise<number> 
   return ranked.length;
 }
 
+/**
+ * Reads the stored table for a season.
+ *
+ * The season and the next kickoff are passed in rather than looked up: every
+ * caller already holds them, and re-reading them here cost two extra database
+ * round trips on the home page, which is the slowest page in the app.
+ *
+ * `nextKickoffAt` may be a promise so that a caller who still has to fetch the
+ * next match can hand it over unresolved - it only feeds the poll interval, so
+ * it is awaited after the table query has already been sent rather than before.
+ */
 export async function getLeaderboard(
-  seasonId: string,
+  season: SeasonRow,
   currentUserId: string,
   now: Date,
+  nextKickoffAt: Date | null | Promise<Date | null>,
 ): Promise<LeaderboardDto> {
-  const [season, entries, nextMatch, updatedAt] = await Promise.all([
-    seasonRepository.findById(seasonId),
-    leaderboardRepository.listBySeason(seasonId),
-    matchRepository.findNextOpen(seasonId, now),
-    leaderboardRepository.lastUpdatedAt(seasonId),
-  ]);
+  const entries = await leaderboardRepository.listBySeason(season.id);
+
+  // `updatedAt` of the newest row is the table's age - the rows are rewritten
+  // wholesale by `replaceSeason`, so a separate MAX query told us nothing the
+  // rows we just loaded did not already say.
+  const updatedAt = entries.reduce<Date | null>(
+    (latest, entry) =>
+      latest === null || entry.updatedAt > latest ? entry.updatedAt : latest,
+    null,
+  );
 
   const rows: LeaderboardRowDto[] = entries.map((entry) => ({
     userId: entry.userId,
@@ -128,10 +142,10 @@ export async function getLeaderboard(
   }));
 
   return {
-    seasonId,
-    seasonName: season?.name ?? 'Sezona',
+    seasonId: season.id,
+    seasonName: season.name,
     rows,
     updatedAt: (updatedAt ?? now).toISOString(),
-    pollHint: pollHintFor(nextMatch?.kickoffAt ?? null, now),
+    pollHint: pollHintFor(await nextKickoffAt, now),
   };
 }

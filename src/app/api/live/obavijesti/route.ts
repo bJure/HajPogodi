@@ -14,10 +14,9 @@ const LIMIT = 15;
 
 export async function GET() {
   return withRoute('live/obavijesti', async () => {
-    const user = await requireUser();
     const now = new Date();
+    const [user, season] = await Promise.all([requireUser(), seasonRepository.findActive()]);
 
-    const season = await seasonRepository.findActive();
     const [items, unread, next] = await Promise.all([
       notificationRepository.listForUser(user.id, LIMIT),
       notificationRepository.countUnread(user.id),

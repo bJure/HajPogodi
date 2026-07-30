@@ -16,10 +16,11 @@ export default async function StatsPage({
 }: {
   params: Promise<{ userId: string }>;
 }) {
-  const viewer = await requirePageUser();
-  const { userId } = await params;
-
-  const season = await seasonRepository.findActive();
+  const [viewer, season, { userId }] = await Promise.all([
+    requirePageUser(),
+    seasonRepository.findActive(),
+    params,
+  ]);
   if (!season) notFound();
 
   const stats = await getUserStats(userId, season.id);

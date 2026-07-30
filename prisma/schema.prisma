@@ -11,6 +11,12 @@
 
 generator client {
   provider = "prisma-client-js"
+  // `relationJoins` lets a query with `include` resolve its relations in one
+  // SQL statement (LATERAL JOIN) instead of one statement per relation. Every
+  // read here runs against Neon over the network, where a round trip costs far
+  // more than the join itself: loading the next match with its opponent,
+  // competition and result was four sequential trips before this.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {

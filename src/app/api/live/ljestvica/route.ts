@@ -2,15 +2,18 @@ import { NextResponse } from 'next/server';
 import { getLeaderboard } from '@/application/services/leaderboardService';
 import { withRoute } from '@/lib/api';
 import { requireUser } from '@/infrastructure/auth/session';
-import { seasonRepository } from '@/infrastructure/repositories/matchRepository';
+import {
+  matchRepository,
+  seasonRepository,
+} from '@/infrastructure/repositories/matchRepository';
 
 export const dynamic = 'force-dynamic';
 
 /** Polled by the leaderboard page so new points appear without a refresh. */
 export async function GET() {
   return withRoute('live/ljestvica', async () => {
-    const user = await requireUser();
-    const season = await seasonRepository.findActive();
+    const now = new Date();
+    const [user, season] = await Promise.all([requireUser(), seasonRepository.findActive()]);
 
     if (!season) {
       return NextResponse.json({
@@ -22,7 +25,12 @@ export async function GET() {
       });
     }
 
-    const leaderboard = await getLeaderboard(season.id, user.id, new Date());
+    // Handed over unresolved so the table query does not wait on it.
+    const nextKickoffAt = matchRepository
+      .findNextOpen(season.id, now)
+      .then((match) => match?.kickoffAt ?? null);
+
+    const leaderboard = await getLeaderboard(season, user.id, now, nextKickoffAt);
     return NextResponse.json(leaderboard);
   });
 }

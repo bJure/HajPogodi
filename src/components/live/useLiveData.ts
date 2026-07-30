@@ -33,6 +33,8 @@ export function useLiveData<T extends LivePayload>(url: string, initial: T | nul
   const abortRef = useRef<AbortController | null>(null);
   // Guards against a slow response from a previous url overwriting a newer one.
   const requestIdRef = useRef(0);
+  // Only the very first poll may be skipped; a later url change must fetch.
+  const skipFirstFetch = useRef(initial !== null);
 
   const fetchNow = useCallback(async () => {
     abortRef.current?.abort();
@@ -78,10 +80,21 @@ export function useLiveData<T extends LivePayload>(url: string, initial: T | nul
       }, delay);
     };
 
-    // The first fetch goes through the same timer rather than running inline:
-    // starting an update synchronously in the effect body would trigger a
-    // cascading render, and a zero-delay timeout is equivalent in practice.
-    schedule(0);
+    /*
+     * When the server already rendered a payload into the page, the first poll
+     * waits for the normal interval instead of firing on mount. Fetching
+     * immediately re-ran the exact same database work a second time for every
+     * page load - two extra requests on the home page alone, competing with the
+     * page's own queries for the connection pool - and replaced the data with an
+     * identical copy.
+     *
+     * Without server data there is nothing to show, so that case still starts
+     * at once. The fetch goes through the timer rather than running inline
+     * because starting an update synchronously in the effect body would trigger
+     * a cascading render, and a zero-delay timeout is equivalent in practice.
+     */
+    schedule(skipFirstFetch.current ? intervalRef.current : 0);
+    skipFirstFetch.current = false;
 
     const onWake = () => {
       if (document.visibilityState !== 'visible') return;

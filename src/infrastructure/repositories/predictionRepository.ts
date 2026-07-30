@@ -24,6 +24,12 @@ export const predictionRepository: PredictionRepository = {
       orderBy: { submittedAt: 'asc' },
     }),
 
+  listByUserAndMatches: (userId, matchIds) =>
+    prisma.prediction.findMany({
+      where: { userId, matchId: { in: matchIds } },
+      include: PREDICTION_INCLUDE,
+    }),
+
   listByUserAndSeason: (userId, seasonId) =>
     prisma.prediction.findMany({
       where: { userId, match: { seasonId } },
@@ -96,14 +102,5 @@ export const leaderboardRepository: LeaderboardRepository = {
         data: rows.map((row) => ({ seasonId, ...row })),
       }),
     ]);
-  },
-
-  lastUpdatedAt: async (seasonId) => {
-    const latest = await prisma.leaderboardEntry.findFirst({
-      where: { seasonId },
-      orderBy: { updatedAt: 'desc' },
-      select: { updatedAt: true },
-    });
-    return latest?.updatedAt ?? null;
   },
 };

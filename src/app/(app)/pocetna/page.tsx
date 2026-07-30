@@ -25,9 +25,10 @@ export const metadata: Metadata = { title: 'Početna' };
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
-  const user = await requirePageUser();
   const now = new Date();
-  const season = await seasonRepository.findActive();
+  // Independent reads, so they must not queue behind each other: every one is a
+  // round trip to Neon and this page already needs several in sequence.
+  const [user, season] = await Promise.all([requirePageUser(), seasonRepository.findActive()]);
 
   if (!season) {
     return (
@@ -54,9 +55,9 @@ export default async function HomePage() {
   const [prediction, others, leaderboard, recent] = await Promise.all([
     nextMatch ? getMyPrediction(user.id, nextMatch.id) : Promise.resolve(null),
     nextMatch
-      ? listMatchPredictions(nextMatch.id, now, { revealBeforeLock: false })
+      ? listMatchPredictions(nextMatch, now, { revealBeforeLock: false })
       : Promise.resolve([]),
-    getLeaderboard(season.id, user.id, now),
+    getLeaderboard(season, user.id, now, nextMatch?.kickoffAt ?? null),
     listRecentResults(season.id, user.id, 5, now),
   ]);
 

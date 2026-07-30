@@ -165,6 +165,7 @@ export interface MatchResultRepository {
 export interface PredictionRepository {
   findByUserAndMatch(userId: string, matchId: string): Promise<PredictionRow | null>;
   listByMatch(matchId: string): Promise<PredictionRow[]>;
+  listByUserAndMatches(userId: string, matchIds: string[]): Promise<PredictionRow[]>;
   listByUserAndSeason(userId: string, seasonId: string): Promise<PredictionRow[]>;
   listBySeason(seasonId: string): Promise<PredictionRow[]>;
   upsert(data: {
@@ -197,7 +198,6 @@ export interface LeaderboardRepository {
       lastPredictionAt: Date | null;
     }[],
   ): Promise<void>;
-  lastUpdatedAt(seasonId: string): Promise<Date | null>;
 }
 
 export interface AchievementRepository {

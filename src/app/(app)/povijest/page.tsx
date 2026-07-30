@@ -10,8 +10,7 @@ export const metadata: Metadata = { title: 'Povijest' };
 export const dynamic = 'force-dynamic';
 
 export default async function HistoryPage() {
-  const user = await requirePageUser();
-  const season = await seasonRepository.findActive();
+  const [user, season] = await Promise.all([requirePageUser(), seasonRepository.findActive()]);
 
   if (!season) {
     return (

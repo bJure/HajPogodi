@@ -1,9 +1,11 @@
 import 'server-only';
+import { cache } from 'react';
 import type {
   CompetitionRepository,
   MatchRepository,
   MatchResultRepository,
   SeasonRepository,
+  SeasonRow,
   TeamRepository,
 } from '@/application/ports/repositories';
 import { prisma } from '@/infrastructure/db/prisma';
@@ -15,10 +17,24 @@ import {
 
 const MATCH_INCLUDE = { opponent: true, competition: true, result: true } as const;
 
+/**
+ * Nearly every request needs the active season, and it is asked for more than
+ * once: a page reads it, then a service it calls reads it again. `cache`
+ * deduplicates that within a single request, exactly as `getCurrentUser` does.
+ *
+ * Safe because nothing flips `isActive` and then re-reads it in the same
+ * request - only the admin's activate action writes it, and that is its own
+ * request which redirects afterwards. Outside a request context (cron, worker)
+ * `cache` is a pass-through.
+ */
+const findActiveSeason = cache(
+  (): Promise<SeasonRow | null> => prisma.season.findFirst({ where: { isActive: true } }),
+);
+
 export const seasonRepository: SeasonRepository = {
   findById: (id) => prisma.season.findUnique({ where: { id } }),
 
-  findActive: () => prisma.season.findFirst({ where: { isActive: true } }),
+  findActive: () => findActiveSeason(),
 
   list: () =>
     prisma.season.findMany({

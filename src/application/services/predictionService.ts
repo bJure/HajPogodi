@@ -134,13 +134,10 @@ export async function listMyPredictions(
  * leader.
  */
 export async function listMatchPredictions(
-  matchId: string,
+  match: MatchRow,
   now: Date,
   options: { revealBeforeLock: boolean },
 ): Promise<PredictionDto[]> {
-  const match = await matchRepository.findById(matchId);
-  if (!match) throwDomain(Errors.notFound('Utakmica'));
-
   const locked = !isOpenForPredictions(
     {
       kickoffAt: match.kickoffAt,
@@ -153,7 +150,7 @@ export async function listMatchPredictions(
 
   if (!locked && !options.revealBeforeLock) return [];
 
-  const rows = await predictionRepository.listByMatch(matchId);
+  const rows = await predictionRepository.listByMatch(match.id);
   return rows.map(toPredictionDto);
 }
 
@@ -165,14 +162,21 @@ export async function listRecentResults(
   now: Date,
 ): Promise<PredictionWithMatchDto[]> {
   const matches: MatchRow[] = await matchRepository.listRecentFinished(seasonId, limit);
+  if (matches.length === 0) return [];
 
-  return Promise.all(
-    matches.map(async (match) => {
-      const prediction = await predictionRepository.findByUserAndMatch(userId, match.id);
-      return {
-        match: toMatchDto(match, now),
-        prediction: prediction ? toPredictionDto(prediction) : null,
-      };
-    }),
+  // One query for all of them - asking per match cost `limit` extra round trips
+  // to the database for a list that is never longer than a handful of rows.
+  const predictions = await predictionRepository.listByUserAndMatches(
+    userId,
+    matches.map((match) => match.id),
   );
+  const byMatch = new Map(predictions.map((p) => [p.matchId, p] as const));
+
+  return matches.map((match) => {
+    const prediction = byMatch.get(match.id);
+    return {
+      match: toMatchDto(match, now),
+      prediction: prediction ? toPredictionDto(prediction) : null,
+    };
+  });
 }

@@ -81,7 +81,11 @@ export function NotificationBell() {
       </button>
 
       {open ? (
-        <div className="glass-strong absolute right-0 top-full z-50 mt-2 w-80 animate-[--animate-pop] rounded-2xl p-2">
+        // The bell sits a few pixels from the right edge, so a flat 20rem panel
+        // ran off the left side of a phone screen and lost its first column of
+        // text. Clamping to the viewport keeps it readable on a 320px device and
+        // changes nothing above ~22rem.
+        <div className="glass-strong absolute right-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] animate-[--animate-pop] rounded-2xl p-2">
           <p className="px-2.5 py-2 text-xs font-semibold uppercase tracking-wider text-ink-faint">
             Obavijesti
           </p>

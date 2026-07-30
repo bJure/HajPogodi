@@ -3,14 +3,17 @@ import { getLeaderboard } from '@/application/services/leaderboardService';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { LeaderboardTable } from '@/components/leaderboard/LeaderboardTable';
 import { requirePageUser } from '@/infrastructure/auth/session';
-import { seasonRepository } from '@/infrastructure/repositories/matchRepository';
+import {
+  matchRepository,
+  seasonRepository,
+} from '@/infrastructure/repositories/matchRepository';
 
 export const metadata: Metadata = { title: 'Ljestvica' };
 export const dynamic = 'force-dynamic';
 
 export default async function LeaderboardPage() {
-  const user = await requirePageUser();
-  const season = await seasonRepository.findActive();
+  const now = new Date();
+  const [user, season] = await Promise.all([requirePageUser(), seasonRepository.findActive()]);
 
   if (!season) {
     return (
@@ -20,7 +23,12 @@ export default async function LeaderboardPage() {
     );
   }
 
-  const leaderboard = await getLeaderboard(season.id, user.id, new Date());
+  // Handed over unresolved so the table query does not wait on it.
+  const nextKickoffAt = matchRepository
+    .findNextOpen(season.id, now)
+    .then((match) => match?.kickoffAt ?? null);
+
+  const leaderboard = await getLeaderboard(season, user.id, now, nextKickoffAt);
 
   return (
     <div className="animate-[--animate-fade-up] space-y-5">
