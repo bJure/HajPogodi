@@ -68,11 +68,12 @@ async function seedAdmin(): Promise<string> {
       'SEED_ADMIN_PASSWORD nije postavljen. Postavi ga u .env prije prvog pokretanja seeda.',
     );
   }
-  // 12 rather than 8: this account is an administrator and its password is the
-  // one people are most likely to leave as-is.
-  if (password.length < 12) {
-    throw new Error('SEED_ADMIN_PASSWORD mora imati barem 12 znakova.');
-  }
+  // No minimum length, matching `password` in `src/application/dto/user.ts` -
+  // every other path that sets a password asks only that the field is filled
+  // in, and a seed that demanded more than the change-password form would just
+  // be a rule nobody could explain. The check below is the one that matters:
+  // length is not what makes a published password guessable.
+  //
   // `.env.example` is published in a public repository, so any value copied
   // straight out of it is already public knowledge.
   if (PLACEHOLDER_PASSWORDS.has(password.trim().toLowerCase())) {

@@ -88,7 +88,7 @@ Repozitorij je javan, pa je svaka vrijednost u predlošku javno poznata. Da `.en
 Zato tajne u predlošku stoje prazne, a kod **odbija pokretanje** ako ostanu placeholderi:
 
 - `AUTH_SECRET` i `CRON_SECRET` — provjera u `src/lib/env.ts` pada na poznatim placeholderima, neovisno o duljini
-- `SEED_ADMIN_PASSWORD` — seed traži najmanje 12 znakova i odbija poznate placeholdere
+- `SEED_ADMIN_PASSWORD` — seed odbija praznu vrijednost i poznate placeholdere
 - dev baza sluša samo na `127.0.0.1`, jer joj je lozinka u ovom repozitoriju
 
 Test `tests/domain/envPlaceholders.test.ts` pada ako netko ikad vrati upotrebljivu vrijednost u predložak.
@@ -159,7 +159,7 @@ src/
 
 ## Sigurnost
 
-- Lozinke: `scrypt` (N=32768, r=8), nasumična sol po lozinci, usporedba u konstantnom vremenu. Bez donje granice duljine — grupa je zatvorena, a račun čuva ograničenje prijave. Odbija se samo prazna lozinka i ona dulja od 128 znakova, jednako na svim putovima koji postavljaju lozinku. Iznimka je `SEED_ADMIN_PASSWORD`, koji i dalje traži 12 znakova.
+- Lozinke: `scrypt` (N=32768, r=8), nasumična sol po lozinci, usporedba u konstantnom vremenu. Bez donje granice duljine — grupa je zatvorena, a račun čuva ograničenje prijave. Odbija se samo prazna lozinka i ona dulja od 128 znakova, jednako na svim putovima koji postavljaju lozinku. Isto vrijedi i za `SEED_ADMIN_PASSWORD`, uz dodatnu provjeru da nije placeholder iz `.env.example`.
 - Ograničenje prijave: 5 neuspjeha po korisničkom imenu i 15 po IP-u u 15 minuta, brojano iz baze. Isto ograničenje pokriva i unos trenutne lozinke na stranici za promjenu.
 - IP se čita iz `x-vercel-forwarded-for`, koji postavlja platforma. `x-forwarded-for` šalje klijent, pa bi ograničenje po IP-u s njim bilo ukrasno.
 - Ista poruka za nepostojećeg korisnika i krivu lozinku, uz jednako trošenje CPU-a — bez toga se popis korisnika može izvući mjerenjem vremena.
