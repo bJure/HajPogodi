@@ -16,16 +16,24 @@ GitHub Actions / Cloudflare Worker  (cron)
         ▼
    Next.js na Vercelu ──────► Neon Postgres
         │                         ▲
-        │  API-Football           │ Prisma
+        ├── HNS semafor           │ Prisma
+        │     HNL + kup           │
+        ├── ESPN                  │
+        │     europska natjecanja │
         ▼                         │
    raspored + rezultati ──────────┘
 
 preglednik ──► /api/live/*  (polling, interval određuje server)
 ```
 
-- **Raspored** se povlači jednom dnevno; admin nove utakmice samo potvrdi.
-- **Rezultat** se traži tek od 105. minute nakon početka i najviše 5 sati. Između utakmica cron poziv ne radi ništa.
+- **Raspored** se povlači jednom dnevno iz dva izvora, oba besplatna i bez ključa.
+- **Rezultat** dolazi na dva načina: odmah nakon utakmice preko pollinga (od 105. minute, najviše 5 sati), a inače uz dnevni raspored, jer oba izvora nose i rezultat. Utakmica koju polling propusti zato ne ostaje bez rezultata.
+- **Potvrda** je automatska tri dana prije početka. Dok je utakmica dalje od toga, čeka admina i igrači je ne vide.
 - **Sučelje** se osvježava samo: 15 s dok je utakmica u tijeku, 60 s ako je utakmica danas, inače 5 min. Kad je kartica u pozadini, polling staje.
+
+### Zašto dva izvora
+
+Nijedan besplatan izvor ne pokriva sve. HNS semafor ima HNL i kup, a europskih natjecanja nema. ESPN ima Hajdukove UEFA susrete, a hrvatskog nogometa nema uopće — u njihovom popisu od 220 liga nema ni jedne hrvatske. `compositeClient` ih spaja iza jednog `FootballApiPort`, pa ostatak aplikacije ne zna da ih je dva.
 
 ---
 
@@ -68,16 +76,14 @@ Umjesto `docker compose up -d` otvori besplatnu bazu na [neon.tech](https://neon
 | `AUTH_SECRET` | da | Ključ za potpisivanje sesija, min. 32 znaka |
 | `AUTH_URL` | u produkciji | Puni URL aplikacije. Bez njega aplikacija u produkciji odbija start |
 | `CRON_SECRET` | da | Zajednička tajna za `/api/cron/tick`, min. 16 znakova |
-| `API_FOOTBALL_KEY` | ne | Bez njega nema automatske sinkronizacije; utakmice se unose ručno |
-| `API_FOOTBALL_TEAM_ID` | ne | ID Hajduka, zadano `620` |
 | `ANTHROPIC_API_KEY` | ne | Uključuje AI sloj roasta; bez njega radi deterministički generator |
 | `SEED_ADMIN_*` | prvi put | Podaci prvog admina, koriste se samo u seedu |
 
-Aplikacija je **potpuno funkcionalna bez oba opcionalna ključa**. Bez `API_FOOTBALL_KEY` admin unosi utakmice i rezultate ručno; bez `ANTHROPIC_API_KEY` roast koristi lokalni generator.
+Sinkronizacija rasporeda **ne traži nikakav ključ** — oba izvora su javna. Jedini opcionalni ključ je `ANTHROPIC_API_KEY`; bez njega roast koristi deterministički generator.
 
 ### Zašto su vrijednosti u `.env.example` prazne
 
-Repozitorij je javan, pa je svaka vrijednost u predlošku javno poznata. Da `.env.example` sadrži tajnu koja prolazi validaciju, tko god kopira predložak i deploya dobio bi `CRON_SECRET` koji svatko može pročitati — dovoljno da netko okida `/api/cron/tick` i potroši dnevnu kvotu API-Footballa.
+Repozitorij je javan, pa je svaka vrijednost u predlošku javno poznata. Da `.env.example` sadrži tajnu koja prolazi validaciju, tko god kopira predložak i deploya dobio bi `CRON_SECRET` koji svatko može pročitati — dovoljno da netko okida `/api/cron/tick` koliko mu se prohtjede i time nepotrebno gnjavi izvore rasporeda.
 
 Zato tajne u predlošku stoje prazne, a kod **odbija pokretanje** ako ostanu placeholderi:
 
@@ -129,7 +135,7 @@ src/
   components/      UI komponente
   domain/          čista logika: bodovanje, zaključavanje, roast, postignuća, statistika
   application/     use casevi, DTO-ovi, portovi, mapperi
-  infrastructure/  Prisma repozitoriji, API-Football, auth, logiranje, poslovi
+  infrastructure/  Prisma repozitoriji, izvori rasporeda, auth, logiranje, poslovi
   lib/             env, error wrapperi, formatiranje
 ```
 
@@ -141,7 +147,7 @@ src/
 
 **Zaključavanje se računa, ne sprema.** `isLocked = lockOverride ?? now >= kickoffAt`. Da je to spremljena zastavica koju postavlja cron, propušteno pokretanje ostavilo bi prognoze otvorenima nakon početka. Ovako točnost ne ovisi o tome je li ijedan posao ikad odrađen.
 
-**Admin potvrđuje, sinkronizacija predlaže.** Nove utakmice dolaze kao `NEEDS_CONFIRMATION` i igrači ih ne vide. Polje koje admin uredi zapisuje se u `manualOverrides` i sinkronizacija ga više ne dira.
+**Sinkronizacija predlaže, potvrda dolazi sama ili od admina.** Nove utakmice dolaze kao `NEEDS_CONFIRMATION` i igrači ih ne vide — provjera ima smisla tjednima unaprijed, dok su termini još privremeni. Tri dana prije početka potvrda se dogodi sama, jer bi inače kolo prošlo bez ijedne prognoze samo zato što nitko nije stigao kliknuti. Odgođena i otkazana utakmica se ne objavljuju. Polje koje admin uredi zapisuje se u `manualOverrides` i sinkronizacija ga više ne dira.
 
 **Ljestvica je predmemorija.** Uvijek se može ponovno izračunati iz prognoza i rezultata, pa je ispravak rezultata siguran: bodovi se brišu, ponovno računaju i ljestvica se gradi ispočetka. Pokretanje dvaput daje isti rezultat.
 
@@ -171,13 +177,13 @@ Prijava ranjivosti i model prijetnje: [`SECURITY.md`](SECURITY.md).
 ## Testovi
 
 ```bash
-npm test          # 112 testova, bez baze
+npm test          # 147 testova, bez baze
 npm run typecheck
 npm run lint
 npm run build
 ```
 
-Testovi pokrivaju bodovanje i njegovu proširivost, zaključavanje (uključujući slučaj kad cron nije radio), prozor dohvata rezultata, determinizam roasta i doseg svih tonova, statistiku i nizove, postignuća, mapiranje s API-Footballa, hashiranje lozinki, poništavanje sesija nakon promjene lozinke i odbijanje placeholder tajni.
+Testovi pokrivaju bodovanje i njegovu proširivost, zaključavanje (uključujući slučaj kad cron nije radio), prozor dohvata rezultata, determinizam roasta i doseg svih tonova, statistiku i nizove, postignuća, parsiranje HNS-ovog rasporeda i ESPN-ovog feeda, razdvajanje id-eva po izvoru, automatsku potvrdu utakmice, hashiranje lozinki, poništavanje sesija nakon promjene lozinke i odbijanje placeholder tajni.
 
 ---
 
@@ -195,4 +201,5 @@ Testovi pokrivaju bodovanje i njegovu proširivost, zaključavanje (uključujuć
 | Novo postignuće | `src/domain/achievement/definitions.ts` + `npm run db:seed` |
 | Nove roast rečenice | `src/domain/roast/templates.ts` |
 | Nova sezona | Admin → Sezone → Nova sezona → Aktiviraj |
-| Drugi izvor rezultata | Implementiraj `FootballApiPort` i zamijeni ga u poslovima |
+| Novi izvor rasporeda | Implementiraj `FootballApiPort` i dodaj ga u `compositeClient.ts` |
+| Nova sezona kod HNS-a | Novi id-evi natjecanja u `SEMAFOR_COMPETITIONS` (`semaforClient.ts`) |

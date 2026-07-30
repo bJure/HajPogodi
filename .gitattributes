@@ -1,0 +1,27 @@
+# Line endings are decided by the repository, not by each machine's git config.
+#
+# Without this file the result depends on core.autocrlf: a Windows checkout with
+# autocrlf=true stores LF (correct), one with autocrlf=false stores CRLF, and the
+# same file then flips back and forth in diffs depending on who touched it last.
+# Declaring it here makes the stored form LF everywhere while Windows working
+# copies still get CRLF, which is what the editors here expect.
+* text=auto eol=lf
+
+# Windows-only scripts have to keep CRLF or cmd.exe mis-parses them.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Shell scripts must stay LF even when checked out on Windows.
+*.sh text eol=lf
+
+# Binaries: never touched, never diffed as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
