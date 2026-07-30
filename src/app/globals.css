@@ -84,6 +84,21 @@ body {
   min-height: 100%;
 }
 
+/*
+ * Nothing in this app is meant to scroll sideways, but it only takes one
+ * element a few pixels too wide - a chart that measured its parent before
+ * layout settled, a dropdown anchored near the right edge - for the whole page
+ * to slide left and right under a thumb. This pins it shut.
+ *
+ * `clip` rather than `hidden` on purpose: `hidden` would turn the document into
+ * a scroll container, and the sticky header stops sticking the moment that
+ * happens. `clip` leaves the vertical axis `visible`, so sticky still works.
+ */
+html,
+body {
+  overflow-x: clip;
+}
+
 body {
   background-color: var(--color-navy-950);
   color: var(--color-ink);

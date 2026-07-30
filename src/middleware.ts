@@ -106,7 +106,15 @@ export const config = {
      *
      * Static assets are excluded here too, so their CSP comes from the static
      * header set in `next.config.ts`.
+     *
+     * Files in `public/` are matched by extension rather than by name. Naming
+     * them one at a time looked tidy while `hero.jpg` was the only one, but it
+     * is a trap: the next file added gets redirected to the login screen
+     * instead of served, and `/_next/image` then fails with a 400 because the
+     * optimizer cannot read the source it was pointed at. That is exactly what
+     * `logo.png` hit. Everything in `public/` is world-readable by design, so
+     * matching the whole class is also the honest description of it.
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|hero.jpg|.*\\.svg$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|txt|xml|webmanifest|woff|woff2)$).*)',
   ],
 };
