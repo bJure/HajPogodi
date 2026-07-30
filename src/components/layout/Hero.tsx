@@ -23,7 +23,7 @@ export function Hero({
   return (
     <section
       className={cn(
-        'relative -mx-4 overflow-hidden border-b border-white/8 px-4 py-6 sm:py-8',
+        'relative -mx-4 overflow-hidden border-b border-white/8 px-4 py-6',
         className,
       )}
     >

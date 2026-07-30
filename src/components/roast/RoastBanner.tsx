@@ -19,7 +19,7 @@ export async function RoastBanner({
   const roast = await getRoast(userId, nickname, seasonId, new Date());
 
   return (
-    <div className="glass relative overflow-hidden rounded-[--radius-card] p-5 sm:p-6">
+    <div className="glass relative overflow-hidden rounded-[--radius-card] px-5 sm:px-6">
       <div
         aria-hidden
         className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-hajduk-red/20 blur-3xl"
@@ -46,7 +46,7 @@ export async function RoastBanner({
 /** Shown while the roast resolves - same shape, so nothing jumps. */
 export function RoastBannerSkeleton() {
   return (
-    <div className="glass rounded-[--radius-card] p-5 sm:p-6">
+    <div className="glass rounded-[--radius-card] px-5 sm:px-6">
       <div className="mb-3 h-3 w-24 rounded bg-white/10" />
       <div className="space-y-2">
         <div className="h-5 w-full rounded bg-white/10" />
