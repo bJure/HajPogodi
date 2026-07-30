@@ -109,10 +109,12 @@ export default async function HomePage() {
 
         <div className="space-y-5 sm:space-y-6">
           <Card>
-            <CardHeader
-              title="Tvoja pozicija"
-              subtitle={leaderboard.seasonName}
-            />
+            {/*
+              * No subtitle: it carried the season name, which reads as
+              * "HNL 2026/27" and so claims the table only counts league
+              * matches. It counts the cup and Europe too.
+              */}
+            <CardHeader title="Tvoja pozicija" />
             {myRow ? (
               <div className="grid grid-cols-3 gap-3">
                 <Stat label="Mjesto" value={`${myRow.rank}.`} accent />

@@ -98,9 +98,7 @@ export default async function StatsPage({
           <StatTile label="Propustio" value={String(stats.missed)} />
         </div>
         {stats.missed > 0 ? (
-          <p className="mt-3 text-xs text-ink-faint">
-            Propuštena kola se broje kao promašaj — niz ne preživi šutnju.
-          </p>
+          <p className="mt-3 text-xs text-ink-faint">Propuštena kola se broje kao promašaj!</p>
         ) : null}
       </Card>
     </div>
@@ -120,13 +118,13 @@ function StatTile({
     <div className="glass rounded-xl px-3 py-3.5 text-center">
       <p
         className={cn(
-          'tabular text-2xl font-black leading-none',
+          'tabular text-3xl font-black leading-none',
           accent ? 'text-hajduk-red-soft' : 'text-ink',
         )}
       >
         {value}
       </p>
-      <p className="mt-1.5 text-[10px] uppercase tracking-wider text-ink-faint">{label}</p>
+      <p className="mt-1.5 text-xs uppercase tracking-wider text-ink-faint">{label}</p>
     </div>
   );
 }

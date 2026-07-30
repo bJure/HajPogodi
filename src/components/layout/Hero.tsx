@@ -23,7 +23,7 @@ export function Hero({
   return (
     <section
       className={cn(
-        'relative -mx-4 overflow-hidden border-b border-white/8 px-4 py-10 sm:py-14',
+        'relative -mx-4 overflow-hidden border-b border-white/8 px-4 py-6 sm:py-8',
         className,
       )}
     >
@@ -40,14 +40,7 @@ export function Hero({
       />
 
       <div className="relative mx-auto max-w-6xl">
-        <div className="flex items-center gap-2">
-          <span className="h-px w-8 bg-hajduk-red" />
-          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-hajduk-red-soft">
-            Ajmo bijeli ale
-          </span>
-        </div>
-
-        <h1 className="mt-3 text-3xl font-black leading-tight tracking-tight text-ink sm:text-4xl lg:text-5xl">
+        <h1 className="text-xl font-black leading-tight tracking-tight text-ink sm:text-2xl lg:text-3xl">
           {title}
         </h1>
 
