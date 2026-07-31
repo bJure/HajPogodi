@@ -123,7 +123,6 @@ export function NavBar({
         {/* Wide screens: the crest goes back to being a link home. */}
         <Link href="/pocetna" className="hidden shrink-0 items-center gap-2.5 md:flex">
           <Crest className="h-9 w-9" />
-          <span className="text-base font-black tracking-tight">HajPogodi</span>
         </Link>
 
         <nav
