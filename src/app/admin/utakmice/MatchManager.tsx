@@ -266,8 +266,9 @@ function LockControl({ match }: { match: AdminMatchDto }) {
   const current = match.lockOverride === null ? 'auto' : String(match.lockOverride);
 
   return (
-    <form className="inline-flex items-center gap-1.5">
-      <span className="sr-only">Zaključavanje</span>
+    // A group, not a form: every ActionButton below renders its own form, and a
+    // form inside a form is invalid HTML that breaks hydration.
+    <div role="group" aria-label="Zaključavanje" className="inline-flex items-center gap-1.5">
       {(
         [
           ['auto', 'Auto'],
@@ -285,7 +286,7 @@ function LockControl({ match }: { match: AdminMatchDto }) {
           {label}
         </ActionButton>
       ))}
-    </form>
+    </div>
   );
 }
 
