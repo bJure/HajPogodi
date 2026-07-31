@@ -2,12 +2,14 @@ import 'server-only';
 import type { PredictionDto, PredictionWithMatchDto } from '@/application/dto/prediction';
 import type { MatchRow, PredictionRow } from '@/application/ports/repositories';
 import { isOpenForPredictions, LOCK_MESSAGES, lockReason } from '@/domain/match/lockPolicy';
+import { buildPredictionBoard, type BoardEntry } from '@/domain/prediction/predictionBoard';
 import type { RuleHit } from '@/domain/scoring/ScoringRule';
 import { Errors, domainError } from '@/domain/shared/DomainError';
 import { toMatchDto } from '@/application/mappers/matchMapper';
 import { throwDomain } from '@/lib/action';
 import { matchRepository } from '@/infrastructure/repositories/matchRepository';
 import { predictionRepository } from '@/infrastructure/repositories/predictionRepository';
+import { userRepository } from '@/infrastructure/repositories/userRepository';
 import { logger } from '@/infrastructure/logging/logger';
 
 /**
@@ -152,6 +154,44 @@ export async function listMatchPredictions(
 
   const rows = await predictionRepository.listByMatch(match.id);
   return rows.map(toPredictionDto);
+}
+
+/**
+ * Everyone's prediction for one match, including the players who never voted.
+ *
+ * Built from the active players outwards rather than from the predictions, so a
+ * missing pick shows up as a gap instead of quietly disappearing from the list.
+ */
+export async function getPredictionBoard(matchId: string, now: Date): Promise<BoardEntry[]> {
+  const match = await matchRepository.findById(matchId);
+  if (!match) throwDomain(Errors.notFound('Utakmica'));
+
+  // Same protection `listMatchPredictions` gets by returning an empty list: the
+  // last person to submit must not be able to read the leader's pick first. It
+  // is checked here against the freshly loaded match, never against the id the
+  // client happened to ask for.
+  if (
+    isOpenForPredictions(
+      {
+        kickoffAt: match.kickoffAt,
+        lockOverride: match.lockOverride,
+        status: match.status,
+        syncState: match.syncState,
+      },
+      now,
+    )
+  ) {
+    throwDomain(
+      domainError('FORBIDDEN', 'Prognoze ostalih vidljive su tek nakon zaključavanja.'),
+    );
+  }
+
+  const [users, predictions] = await Promise.all([
+    userRepository.listActive(),
+    predictionRepository.listByMatch(matchId),
+  ]);
+
+  return buildPredictionBoard(users, predictions.map(toPredictionDto));
 }
 
 /** Recent finished matches with their results, for the home page. */
