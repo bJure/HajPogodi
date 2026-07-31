@@ -126,8 +126,6 @@ export function NavBar({
           <span className="text-base font-black tracking-tight">HajPogodi</span>
         </Link>
 
-        <span className="text-base font-black tracking-tight md:hidden">HajPogodi</span>
-
         <nav
           aria-label="Glavni meni"
           className="ml-2 hidden min-w-0 flex-1 items-center gap-0.5 md:flex"
@@ -160,7 +158,14 @@ export function NavBar({
         {/* Pushes the bell to the right edge once the inline nav is gone. */}
         <div className="flex-1 md:hidden" />
 
-        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        {/*
+          * `-mr-2.5` mirrors the `-ml-1` on the menu button. Both trailing
+          * controls carry `px-2.5`, so without it the bell glyph sat 26px from
+          * the right edge while the crest sat 16px from the left - the row read
+          * as pushed to one side. Pulling the group out by exactly that padding
+          * lands the glyph on 16px, the same gutter the page content uses.
+          */}
+        <div className="-mr-2.5 flex shrink-0 items-center gap-1 sm:gap-2">
           <NotificationBell />
           <span className="hidden text-sm text-ink-muted lg:block">{nickname}</span>
           <button
