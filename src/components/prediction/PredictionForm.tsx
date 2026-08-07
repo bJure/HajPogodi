@@ -31,13 +31,13 @@ function GoalPicker({
         {label}
       </span>
 
-      <div className="flex items-center gap-2">
+      <div className="flex w-full items-center justify-center gap-1.5 sm:gap-2">
         <button
           type="button"
           aria-label={`Smanji ${label}`}
           disabled={disabled || value <= 0}
           onClick={() => onChange(Math.max(0, value - 1))}
-          className="h-9 w-9 rounded-lg border border-white/12 text-lg leading-none text-ink-muted transition-colors hover:bg-white/5 disabled:opacity-30"
+          className="h-9 w-9 shrink-0 rounded-lg border border-white/12 text-lg leading-none text-ink-muted transition-colors hover:bg-white/5 disabled:opacity-30"
         >
           −
         </button>
@@ -56,7 +56,7 @@ function GoalPicker({
             onChange(Math.min(MAX_GOALS, Math.max(0, Math.trunc(next))));
           }}
           aria-label={`Golovi: ${label}`}
-          className="tabular h-16 w-16 rounded-xl border border-white/12 bg-navy-950/60 text-center text-3xl font-bold text-ink [appearance:textfield] focus:border-hajduk-red/60 focus:outline-none disabled:opacity-60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="tabular h-16 min-w-0 max-w-16 flex-1 rounded-xl border border-white/12 bg-navy-950/60 text-center text-3xl font-bold text-ink [appearance:textfield] focus:border-hajduk-red/60 focus:outline-none disabled:opacity-60 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
 
         <button
@@ -64,7 +64,7 @@ function GoalPicker({
           aria-label={`Povećaj ${label}`}
           disabled={disabled || value >= MAX_GOALS}
           onClick={() => onChange(Math.min(MAX_GOALS, value + 1))}
-          className="h-9 w-9 rounded-lg border border-white/12 text-lg leading-none text-ink-muted transition-colors hover:bg-white/5 disabled:opacity-30"
+          className="h-9 w-9 shrink-0 rounded-lg border border-white/12 text-lg leading-none text-ink-muted transition-colors hover:bg-white/5 disabled:opacity-30"
         >
           +
         </button>
@@ -140,7 +140,7 @@ export function PredictionForm({
         />
       ) : null}
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
         <GoalPicker
           name="homeGoals"
           label={match.homeName}
