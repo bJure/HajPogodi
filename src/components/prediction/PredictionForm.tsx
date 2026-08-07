@@ -26,7 +26,7 @@ function GoalPicker({
   disabled: boolean;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center gap-2">
+    <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
       <span className="max-w-full truncate text-xs font-semibold uppercase tracking-wider text-ink-muted">
         {label}
       </span>

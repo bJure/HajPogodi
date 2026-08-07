@@ -79,8 +79,14 @@ export default async function HomePage() {
         </Suspense>
       </Hero>
 
+      {/*
+        * min-w-0 on both columns: a grid item defaults to min-width:auto, so the
+        * min-content of the widest row inside (a long fixture name in "Zadnji
+        * rezultati") sets the column width and pushes both cards off a phone
+        * screen. Letting the columns shrink is what makes the rows truncate.
+        */}
       <section className="grid gap-5 lg:grid-cols-[1.35fr_1fr] sm:gap-6">
-        <div className="space-y-5 sm:space-y-6">
+        <div className="min-w-0 space-y-5 sm:space-y-6">
           <NextMatchCard
             initial={{
               match: nextMatch ? toMatchDto(nextMatch, now) : null,
@@ -107,7 +113,7 @@ export default async function HomePage() {
           </Card>
         </div>
 
-        <div className="space-y-5 sm:space-y-6">
+        <div className="min-w-0 space-y-5 sm:space-y-6">
           <Card>
             {/*
               * No subtitle: it carried the season name, which reads as
