@@ -115,7 +115,12 @@ export interface MatchRepository {
   listDueForAutoConfirm(horizon: Date): Promise<MatchRow[]>;
   /** Finished matches with a stored result that have not been scored yet. */
   listUnscored(seasonId: string): Promise<MatchRow[]>;
-  listRecentFinished(seasonId: string, limit: number): Promise<MatchRow[]>;
+  /**
+   * Kandidati za popis odigranih: sve sto je pocelo ili je admin rano zakljucao.
+   * Zakljucavanje se ne sprema u bazu, pa poziva vratiti vise od `limit` i
+   * pustiti domenu da odluci.
+   */
+  listRecentPlayed(seasonId: string, limit: number, now: Date): Promise<MatchRow[]>;
   create(data: {
     seasonId: string;
     competitionId: string;

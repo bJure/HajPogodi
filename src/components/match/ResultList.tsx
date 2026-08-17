@@ -42,8 +42,9 @@ type BoardState =
 function ResultRow({ item }: { item: PredictionWithMatchDto }) {
   const { match, prediction } = item;
   const hit = (prediction?.points ?? 0) > 0;
-  // Without a result there is nothing to reveal, so the row stays a plain row.
-  const expandable = match.result !== null;
+  // The lock, not the result, is what makes other people's picks readable - a
+  // match that has kicked off opens even while its score is still missing.
+  const expandable = match.isLocked;
 
   const [open, setOpen] = useState(false);
   const [board, setBoard] = useState<BoardState>({ status: 'idle' });
@@ -86,9 +87,17 @@ function ResultRow({ item }: { item: PredictionWithMatchDto }) {
         {match.homeName} <span className="text-ink-faint">–</span> {match.awayName}
       </span>
 
-      <span className="tabular shrink-0 text-sm font-bold text-ink">
-        {match.result ? `${match.result.homeGoals}:${match.result.awayGoals}` : '–'}
-      </span>
+      {match.result ? (
+        <span className="tabular shrink-0 text-sm font-bold text-ink">
+          {`${match.result.homeGoals}:${match.result.awayGoals}`}
+        </span>
+      ) : (
+        // Deliberately small and muted: a word in the score column must not read
+        // as a score.
+        <span className="shrink-0 text-[11px] font-semibold text-ink-muted">
+          {match.awaitingResult ? 'čeka rezultat' : match.isLocked ? 'u tijeku' : '–'}
+        </span>
+      )}
 
       <span className="tabular w-14 shrink-0 text-right text-xs text-ink-muted">
         {prediction ? `${prediction.homeGoals}:${prediction.awayGoals}` : '—'}
@@ -139,14 +148,14 @@ function ResultRow({ item }: { item: PredictionWithMatchDto }) {
           <p className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-ink-faint">
             Prognoze ostalih
           </p>
-          <PredictionBoard state={board} />
+          <PredictionBoard state={board} hasResult={match.result !== null} />
         </div>
       ) : null}
     </li>
   );
 }
 
-function PredictionBoard({ state }: { state: BoardState }) {
+function PredictionBoard({ state, hasResult }: { state: BoardState; hasResult: boolean }) {
   if (state.status === 'loading' || state.status === 'idle') {
     return <p className="text-sm text-ink-muted">Učitavam…</p>;
   }
@@ -171,7 +180,9 @@ function PredictionBoard({ state }: { state: BoardState }) {
             <span
               className={cn(
                 'tabular shrink-0 font-semibold',
-                entry.hit ? 'text-success' : 'text-danger',
+                // No result means nothing has been scored yet, so every entry
+                // would look like a miss. Stay neutral until there is a score.
+                !hasResult ? 'text-ink' : entry.hit ? 'text-success' : 'text-danger',
               )}
             >
               {entry.prediction.homeGoals} : {entry.prediction.awayGoals}

@@ -21,9 +21,14 @@ export interface PollableMatch {
   readonly hasResult: boolean;
 }
 
+/** True once a full-time score could plausibly exist for this kickoff. */
+export function isPastFullTime(kickoffAt: Date, now: Date): boolean {
+  return (now.getTime() - kickoffAt.getTime()) / 60_000 >= RESULT_WINDOW_OPENS_MIN;
+}
+
 export function isInResultWindow(match: PollableMatch, now: Date): boolean {
   const elapsedMin = (now.getTime() - match.kickoffAt.getTime()) / 60_000;
-  return elapsedMin >= RESULT_WINDOW_OPENS_MIN && elapsedMin <= RESULT_WINDOW_CLOSES_MIN;
+  return isPastFullTime(match.kickoffAt, now) && elapsedMin <= RESULT_WINDOW_CLOSES_MIN;
 }
 
 /** The single predicate the poller uses to decide whether to spend a request. */

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isPastFullTime,
   MAX_RESULT_POLL_ATTEMPTS,
   needsManualAttention,
   shouldPollForResult,
@@ -50,6 +51,14 @@ describe('prozor dohvata rezultata', () => {
   it('postuje gornju granicu broja pokusaja', () => {
     const exhausted = match({ resultPollAttempts: MAX_RESULT_POLL_ATTEMPTS });
     expect(shouldPollForResult(exhausted, minutesAfterKickoff(120))).toBe(false);
+  });
+
+  it('zna kad je utakmica mogla zavrsiti, i ostaje tocno i kad prozor dohvata istekne', () => {
+    // Popis odigranih utakmica pise "ceka rezultat" po ovoj granici, a on se
+    // gleda satima nakon pocetka - zato ovdje nema gornje granice.
+    expect(isPastFullTime(KICKOFF, minutesAfterKickoff(104))).toBe(false);
+    expect(isPastFullTime(KICKOFF, minutesAfterKickoff(105))).toBe(true);
+    expect(isPastFullTime(KICKOFF, minutesAfterKickoff(400))).toBe(true);
   });
 
   it('oznacava utakmicu bez rezultata nakon isteka prozora za rucnu intervenciju', () => {

@@ -36,6 +36,8 @@ export interface MatchDto {
   readonly isLocked: boolean;
   readonly lockReason: LockReason;
   readonly result: MatchResultDto | null;
+  /** Zakljucana i odigrana, ali rezultat jos nije upisan. */
+  readonly awaitingResult: boolean;
   readonly scoredAt: string | null;
   /** Convenience for the UI: "HAJDUK - RIJEKA" ordering already resolved. */
   readonly homeName: string;

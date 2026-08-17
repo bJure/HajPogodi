@@ -2,7 +2,7 @@ import 'server-only';
 import type { AdminMatchDto, MatchDto } from '@/application/dto/match';
 import type { MatchRow, MatchWithCountsRow } from '@/application/ports/repositories';
 import { lockReason } from '@/domain/match/lockPolicy';
-import { needsManualAttention } from '@/domain/match/resultWindow';
+import { isPastFullTime, needsManualAttention } from '@/domain/match/resultWindow';
 
 /** Our club's display name; matches are always shown Hajduk-relative. */
 const OUR_CLUB = 'Hajduk';
@@ -49,6 +49,10 @@ export function toMatchDto(row: MatchRow, now: Date): MatchDto {
           correctedAt: row.result.correctedAt?.toISOString() ?? null,
         }
       : null,
+    // Computed here rather than in the client component: the row renders on the
+    // server first, and a `Date.now()` in the browser would rehydrate differently.
+    awaitingResult:
+      row.result === null && reason !== 'OPEN' && isPastFullTime(row.kickoffAt, now),
     scoredAt: row.scoredAt?.toISOString() ?? null,
     homeName: row.isHome ? OUR_CLUB : row.opponent.shortName,
     awayName: row.isHome ? row.opponent.shortName : OUR_CLUB,

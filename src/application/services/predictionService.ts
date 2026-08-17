@@ -1,7 +1,12 @@
 import 'server-only';
 import type { PredictionDto, PredictionWithMatchDto } from '@/application/dto/prediction';
 import type { MatchRow, PredictionRow } from '@/application/ports/repositories';
-import { isOpenForPredictions, LOCK_MESSAGES, lockReason } from '@/domain/match/lockPolicy';
+import {
+  isLocked,
+  isOpenForPredictions,
+  LOCK_MESSAGES,
+  lockReason,
+} from '@/domain/match/lockPolicy';
 import { buildPredictionBoard, type BoardEntry } from '@/domain/prediction/predictionBoard';
 import type { RuleHit } from '@/domain/scoring/ScoringRule';
 import { Errors, domainError } from '@/domain/shared/DomainError';
@@ -194,14 +199,33 @@ export async function getPredictionBoard(matchId: string, now: Date): Promise<Bo
   return buildPredictionBoard(users, predictions.map(toPredictionDto));
 }
 
-/** Recent finished matches with their results, for the home page. */
+/**
+ * Recent locked matches for the home page - a match belongs here from kickoff,
+ * not from the moment the poller stores a score. Between the two the row shows
+ * as still running, which is also when everybody's picks become readable.
+ */
 export async function listRecentResults(
   seasonId: string,
   userId: string,
   limit: number,
   now: Date,
 ): Promise<PredictionWithMatchDto[]> {
-  const matches: MatchRow[] = await matchRepository.listRecentFinished(seasonId, limit);
+  const candidates = await matchRepository.listRecentPlayed(seasonId, limit, now);
+
+  const matches: MatchRow[] = candidates
+    .filter((match) =>
+      isLocked(
+        {
+          kickoffAt: match.kickoffAt,
+          lockOverride: match.lockOverride,
+          status: match.status,
+          syncState: match.syncState,
+        },
+        now,
+      ),
+    )
+    .slice(0, limit);
+
   if (matches.length === 0) return [];
 
   // One query for all of them - asking per match cost `limit` extra round trips

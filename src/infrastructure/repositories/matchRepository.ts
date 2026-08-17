@@ -157,11 +157,19 @@ export const matchRepository: MatchRepository = {
       include: MATCH_INCLUDE,
     }),
 
-  listRecentFinished: (seasonId, limit) =>
+  // Same split as `listAwaitingResult`: SQL narrows to what could be locked, the
+  // domain decides. `lockOverride: false` (admin reopened) survives this query
+  // and is dropped by the caller's `isLocked` check, so ask for a few spares.
+  listRecentPlayed: (seasonId, limit, now) =>
     prisma.match.findMany({
-      where: { seasonId, syncState: 'CONFIRMED', result: { isNot: null } },
+      where: {
+        seasonId,
+        syncState: 'CONFIRMED',
+        status: { notIn: ['CANCELLED', 'POSTPONED'] },
+        OR: [{ kickoffAt: { lte: now } }, { lockOverride: true }],
+      },
       orderBy: { kickoffAt: 'desc' },
-      take: limit,
+      take: limit + 5,
       include: MATCH_INCLUDE,
     }),
 
