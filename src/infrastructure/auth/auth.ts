@@ -19,7 +19,6 @@ import { checkLoginRateLimit, recordLoginAttempt } from './rateLimit';
  */
 
 export const authConfig: NextAuthConfig = {
-  secret: getEnv().AUTH_SECRET,
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
   pages: { signIn: '/prijava', error: '/prijava' },
   trustHost: true,
@@ -113,4 +112,14 @@ export const authConfig: NextAuthConfig = {
   },
 };
 
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+/**
+ * The lazy form of `NextAuth`: the callback runs per request instead of at
+ * module evaluation. `next build` imports this module while collecting page
+ * data for the auth route, and at that point no secret needs to exist yet -
+ * reading AUTH_SECRET eagerly turned a missing variable into a build failure
+ * instead of a failure on the first request that actually needs it.
+ */
+export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
+  ...authConfig,
+  secret: getEnv().AUTH_SECRET,
+}));
