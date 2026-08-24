@@ -19,7 +19,7 @@
     "db:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.16.2",
+    "@prisma/client": "^7.9.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "next": "^16.0.0",
@@ -39,7 +39,7 @@
     "@types/react-dom": "^19.2.0",
     "eslint": "^9.17.0",
     "eslint-config-next": "^16.0.0",
-    "prisma": "^6.16.2",
+    "prisma": "^7.9.1",
     "tailwindcss": "^4.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.0",
